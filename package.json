@@ -1,0 +1,24 @@
+{
+  "name": "1776-game",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "simplex-noise": "^4.0.3",
+    "three": "^0.174.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "@types/three": "^0.174.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "~5.7.3",
+    "vite": "^6.2.0",
+    "vue-tsc": "^2.2.8"
+  }
+}

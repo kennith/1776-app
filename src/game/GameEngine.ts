@@ -1,0 +1,1260 @@
+import * as THREE from 'three';
+import { TerrainGenerator } from './TerrainGenerator';
+import { FirstPersonControls } from './FirstPersonControls';
+import { ColonialWorld } from './ColonialWorld';
+import { soundManager } from '../audio/SoundManager';
+import type { PlayerState, Landmark, PlayerLoadout, BuildingId } from '../types';
+import { DEFAULT_LOADOUT, MAIN_WEAPONS, SUB_WEAPONS, TOOLS, SPECIALTIES, BUILDING_BLUEPRINTS } from '../types';
+
+interface ActiveGrenade {
+  mesh: THREE.Group;
+  velocity: THREE.Vector3;
+  rotVel: THREE.Vector3;
+  fuseTimer: number;
+}
+
+interface ActiveExplosion {
+  group: THREE.Group;
+  sphere: THREE.Mesh;
+  light: THREE.PointLight;
+  particles: THREE.Points;
+  particleVelocities: THREE.Vector3[];
+  age: number;
+  maxAge: number;
+}
+
+export class GameEngine {
+  public container: HTMLElement;
+  public scene: THREE.Scene;
+  public camera: THREE.PerspectiveCamera;
+  public renderer: THREE.WebGLRenderer;
+  public terrain: TerrainGenerator;
+  public controls: FirstPersonControls;
+  public colonialWorld: ColonialWorld;
+  public loadout: PlayerLoadout;
+
+  // Viewmodel & Attack Animations
+  public weaponPivot: THREE.Group = new THREE.Group();
+  public activeWeaponMesh: THREE.Group = new THREE.Group();
+  public muzzleFlashLight: THREE.PointLight | null = null;
+  public isAttacking: boolean = false;
+  private attackProgress: number = 0;
+  private isSwinging: boolean = false;
+  private shovelSwings: number = 0;
+
+  // Active Throwable Grenades & Explosion FX
+  private activeGrenades: ActiveGrenade[] = [];
+  private activeExplosions: ActiveExplosion[] = [];
+
+  // 1776 Frontier Building Hologram Preview
+  private ghostBuildingMesh: THREE.Group | null = null;
+  private ghostBuildingType: BuildingId | null = null;
+  private ghostBuildingValid: boolean = true;
+
+  private clock: THREE.Clock;
+  private animationFrameId: number | null = null;
+  private isRunning: boolean = false;
+  private onStateUpdateCb: ((state: PlayerState) => void) | null = null;
+  public onHarvestWoodCb: ((amount: number) => void) | null = null;
+  public onToggleBackpackCb: (() => void) | null = null;
+  public onToggleMapCb: (() => void) | null = null;
+  public onToggleBuildCb: (() => void) | null = null;
+  private onResizeBound: () => void;
+
+  public waterMesh: THREE.Mesh | null = null;
+
+  constructor(container: HTMLElement, loadout: PlayerLoadout = DEFAULT_LOADOUT) {
+    this.container = container;
+    this.loadout = loadout;
+    this.scene = new THREE.Scene();
+    this.clock = new THREE.Clock();
+
+    const aspect = container.clientWidth / (container.clientHeight || 1);
+    this.camera = new THREE.PerspectiveCamera(72, aspect, 0.1, 1400);
+
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    this.renderer.setSize(container.clientWidth, container.clientHeight);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.1;
+    container.appendChild(this.renderer.domElement);
+
+    // Terrain & Baseline y=20
+    this.terrain = new TerrainGenerator();
+    const terrainMesh = this.terrain.generateMesh();
+    this.scene.add(terrainMesh);
+    this.waterMesh = this.terrain.generateWaterMesh();
+    this.scene.add(this.waterMesh);
+
+    // First Person Controller with Loadout Modifiers
+    this.controls = new FirstPersonControls(this.camera, this.renderer.domElement, this.terrain, this.loadout);
+    this.controls.setOnSlotChange((slot) => {
+      this.rebuildWeaponViewModel(slot);
+    });
+    this.controls.setOnToggleBackpack(() => {
+      if (this.onToggleBackpackCb) {
+        this.onToggleBackpackCb();
+      }
+    });
+    this.controls.setOnToggleMap(() => {
+      if (this.onToggleMapCb) {
+        this.onToggleMapCb();
+      }
+    });
+    this.controls.setOnToggleBuild(() => {
+      if (this.onToggleBuildCb) {
+        this.onToggleBuildCb();
+      }
+    });
+
+    // Colonial World & Atmosphere (3x foliage density & solid collision grid)
+    this.colonialWorld = new ColonialWorld(this.scene, this.terrain);
+    this.colonialWorld.populate();
+    this.controls.setColonialWorld(this.colonialWorld);
+
+    // Setup 3D Weapon Rig
+    this.setupWeaponRig();
+    this.rebuildWeaponViewModel('main');
+
+    this.onResizeBound = this.onWindowResize.bind(this);
+    window.addEventListener('resize', this.onResizeBound);
+  }
+
+  private setupWeaponRig() {
+    this.weaponPivot = new THREE.Group();
+    this.weaponPivot.position.set(0.24, -0.22, -0.48);
+
+    this.muzzleFlashLight = new THREE.PointLight(0xffaa22, 0, 15);
+    this.muzzleFlashLight.position.set(0, 0.05, -1.0);
+    this.weaponPivot.add(this.muzzleFlashLight);
+
+    this.camera.add(this.weaponPivot);
+    this.scene.add(this.camera);
+  }
+
+  /**
+   * Rebuilds the 3D first person viewmodel according to the active loadout slot
+   */
+  public rebuildWeaponViewModel(slot: 'main' | 'sub' | 'tool') {
+    while (this.activeWeaponMesh.children.length > 0) {
+      this.activeWeaponMesh.remove(this.activeWeaponMesh.children[0]);
+    }
+    this.weaponPivot.remove(this.activeWeaponMesh);
+
+    this.activeWeaponMesh = new THREE.Group();
+
+    if (slot === 'main') {
+      const mainId = this.loadout.mainWeapon;
+      if (mainId === 'sword') {
+        this.buildSwordModel(this.activeWeaponMesh);
+      } else if (mainId === 'kentucky') {
+        this.buildKentuckyRifleModel(this.activeWeaponMesh);
+      } else if (mainId === 'brown_bess') {
+        this.buildBrownBessModel(this.activeWeaponMesh);
+      } else {
+        this.buildSpringfieldModel(this.activeWeaponMesh);
+      }
+    } else if (slot === 'sub') {
+      const subId = this.loadout.subWeapon;
+      if (subId === 'knife') {
+        this.buildKnifeModel(this.activeWeaponMesh);
+      } else if (subId === 'machete') {
+        this.buildMacheteModel(this.activeWeaponMesh);
+      } else if (subId === 'grenade') {
+        this.buildGrenadeModel(this.activeWeaponMesh);
+      } else {
+        this.buildPistolModel(this.activeWeaponMesh);
+      }
+    } else {
+      const toolId = this.loadout.tool;
+      if (toolId === 'shovel') {
+        this.buildShovelModel(this.activeWeaponMesh);
+      } else if (toolId === 'med_kit') {
+        this.buildMedKitModel(this.activeWeaponMesh);
+      } else {
+        this.buildAxeModel(this.activeWeaponMesh);
+      }
+    }
+
+    this.weaponPivot.add(this.activeWeaponMesh);
+  }
+
+  // --- Weapon 3D Model Builders ---
+
+  private buildSpringfieldModel(parent: THREE.Group) {
+    const gun = new THREE.Group();
+    gun.position.set(0, -0.02, 0);
+
+    const stockGeom = new THREE.BoxGeometry(0.06, 0.09, 0.95);
+    const stockMat = new THREE.MeshStandardMaterial({ color: 0x4a2e18, roughness: 0.7 });
+    const stock = new THREE.Mesh(stockGeom, stockMat);
+    stock.position.set(0, -0.04, -0.3);
+    gun.add(stock);
+
+    const barrelGeom = new THREE.CylinderGeometry(0.02, 0.024, 1.25, 12);
+    barrelGeom.rotateX(Math.PI / 2);
+    const barrelMat = new THREE.MeshStandardMaterial({ color: 0x2b2d42, metalness: 0.9, roughness: 0.3 });
+    const barrel = new THREE.Mesh(barrelGeom, barrelMat);
+    barrel.position.set(0, 0.03, -0.65);
+    gun.add(barrel);
+
+    const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.85, roughness: 0.3 });
+    const bandGeom = new THREE.CylinderGeometry(0.027, 0.027, 0.05, 12);
+    bandGeom.rotateX(Math.PI / 2);
+    const band1 = new THREE.Mesh(bandGeom, brassMat);
+    band1.position.set(0, 0.03, -0.4);
+    gun.add(band1);
+    const band2 = new THREE.Mesh(bandGeom, brassMat);
+    band2.position.set(0, 0.03, -0.85);
+    gun.add(band2);
+
+    parent.add(gun);
+  }
+
+  private buildKentuckyRifleModel(parent: THREE.Group) {
+    const gun = new THREE.Group();
+    gun.position.set(0, -0.02, 0);
+
+    const stockGeom = new THREE.BoxGeometry(0.05, 0.08, 1.15);
+    const stockMat = new THREE.MeshStandardMaterial({ color: 0x5c3d2e, roughness: 0.6 });
+    const stock = new THREE.Mesh(stockGeom, stockMat);
+    stock.position.set(0, -0.03, -0.4);
+    gun.add(stock);
+
+    const barrelGeom = new THREE.CylinderGeometry(0.016, 0.02, 1.5, 8);
+    barrelGeom.rotateX(Math.PI / 2);
+    const barrelMat = new THREE.MeshStandardMaterial({ color: 0x1f2421, metalness: 0.95, roughness: 0.2 });
+    const barrel = new THREE.Mesh(barrelGeom, barrelMat);
+    barrel.position.set(0, 0.03, -0.8);
+    gun.add(barrel);
+
+    const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.25 });
+    const patchbox = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.05, 0.15), brassMat);
+    patchbox.position.set(0.03, -0.04, -0.2);
+    gun.add(patchbox);
+
+    parent.add(gun);
+  }
+
+  private buildBrownBessModel(parent: THREE.Group) {
+    const gun = new THREE.Group();
+    gun.position.set(0, -0.02, 0);
+
+    const stockGeom = new THREE.BoxGeometry(0.07, 0.11, 1.0);
+    const stockMat = new THREE.MeshStandardMaterial({ color: 0x2b1d06, roughness: 0.85 });
+    const stock = new THREE.Mesh(stockGeom, stockMat);
+    stock.position.set(0, -0.04, -0.32);
+    gun.add(stock);
+
+    const barrelGeom = new THREE.CylinderGeometry(0.026, 0.032, 1.3, 12);
+    barrelGeom.rotateX(Math.PI / 2);
+    const barrelMat = new THREE.MeshStandardMaterial({ color: 0x3d3f47, metalness: 0.8, roughness: 0.4 });
+    const barrel = new THREE.Mesh(barrelGeom, barrelMat);
+    barrel.position.set(0, 0.04, -0.7);
+    gun.add(barrel);
+
+    const bayonetGeom = new THREE.ConeGeometry(0.015, 0.35, 4);
+    bayonetGeom.rotateX(-Math.PI / 2);
+    const bayonetMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.95, roughness: 0.2 });
+    const bayonet = new THREE.Mesh(bayonetGeom, bayonetMat);
+    bayonet.position.set(0.04, 0.04, -1.45);
+    gun.add(bayonet);
+
+    parent.add(gun);
+  }
+
+  private buildSwordModel(parent: THREE.Group) {
+    const sword = new THREE.Group();
+    // Poised commandingly forward and slightly upward in the player's view
+    sword.position.set(0.14, -0.20, -0.22);
+    sword.rotation.set(-0.42, 0.14, -0.06);
+
+    // ==========================================
+    // HIGH-DEFINITION SHADER MATERIALS
+    // ==========================================
+    // 1. Mirror Polished High-Carbon Steel (Beveled cutting edges and spatulate tip)
+    const polishedSteelMat = new THREE.MeshStandardMaterial({
+      color: 0xf8f9fa,
+      metalness: 0.99,
+      roughness: 0.08
+    });
+
+    // 2. Deep Tempered Central Fuller Groove Steel
+    const fullerMat = new THREE.MeshStandardMaterial({
+      color: 0x8a9ba8,
+      metalness: 0.94,
+      roughness: 0.25
+    });
+
+    // 3. Antique Carved Filigree Bronze / Dark Iron (Guard, Bosses, and Pommel)
+    const antiqueBronzeMat = new THREE.MeshStandardMaterial({
+      color: 0x3d3228,
+      metalness: 0.88,
+      roughness: 0.36
+    });
+
+    // 4. Ornate Gold Filigree Relief Accents
+    const goldAccentMat = new THREE.MeshStandardMaterial({
+      color: 0xd4af37,
+      metalness: 0.94,
+      roughness: 0.18
+    });
+
+    // 5. Charcoal Blackened Cord & Braided Leather Grip
+    const gripMat = new THREE.MeshStandardMaterial({
+      color: 0x14171a,
+      roughness: 0.92,
+      metalness: 0.06
+    });
+
+    // ==========================================
+    // 1. MASSIVE BROAD DOUBLE-EDGED STEEL BLADE
+    // ==========================================
+    const bladeGroup = new THREE.Group();
+
+    // True Great Broadsword Proportions (1.25m Blade Length, 0.105m Width)
+    const bladeLength = 1.25;
+    const bladeWidth = 0.105;
+    const bladeThickness = 0.016;
+
+    // Left Cutting Edge Blade Half (Angled Sharp Bevel)
+    const leftBladeGeom = new THREE.BoxGeometry(bladeWidth / 2, bladeThickness, bladeLength);
+    leftBladeGeom.translate(-bladeWidth / 4, 0, -bladeLength / 2);
+    const leftBlade = new THREE.Mesh(leftBladeGeom, polishedSteelMat);
+    bladeGroup.add(leftBlade);
+
+    // Right Cutting Edge Blade Half (Angled Sharp Bevel)
+    const rightBladeGeom = new THREE.BoxGeometry(bladeWidth / 2, bladeThickness, bladeLength);
+    rightBladeGeom.translate(bladeWidth / 4, 0, -bladeLength / 2);
+    const rightBlade = new THREE.Mesh(rightBladeGeom, polishedSteelMat);
+    bladeGroup.add(rightBlade);
+
+    // Wide, Distinct Central Fuller (Blood Groove) running 85% down the blade length
+    const fullerLength = 1.05;
+    const fullerWidth = 0.046;
+    const fullerGeom = new THREE.BoxGeometry(fullerWidth, bladeThickness + 0.003, fullerLength);
+    fullerGeom.translate(0, 0, -fullerLength / 2 - 0.04);
+    const fuller = new THREE.Mesh(fullerGeom, fullerMat);
+    bladeGroup.add(fuller);
+
+    // Central Fuller Inset Accent Line
+    const fullerSpineGeom = new THREE.BoxGeometry(0.008, bladeThickness + 0.004, fullerLength * 0.92);
+    fullerSpineGeom.translate(0, 0, -fullerLength / 2 - 0.04);
+    const fullerSpine = new THREE.Mesh(fullerSpineGeom, polishedSteelMat);
+    bladeGroup.add(fullerSpine);
+
+    // Spatulate Spear-Point Tip
+    const tipGeom = new THREE.ConeGeometry(bladeWidth * 0.70, 0.22, 4);
+    tipGeom.rotateX(-Math.PI / 2);
+    tipGeom.rotateZ(Math.PI / 4);
+    const tip = new THREE.Mesh(tipGeom, polishedSteelMat);
+    tip.position.set(0, 0, -bladeLength - 0.08);
+    tip.scale.set(1.0, 0.16, 1.0);
+    bladeGroup.add(tip);
+
+    sword.add(bladeGroup);
+
+    // ==========================================
+    // 2. ORNATE CARVED BRONZE CROSSGUARD (LOWER HILT)
+    // ==========================================
+    const guardGroup = new THREE.Group();
+    guardGroup.position.set(0, 0, -0.015);
+
+    // Main Boat-Shaped Heavy Bronze Crossguard Bar
+    const guardWidth = 0.25;
+    const guardBarGeom = new THREE.BoxGeometry(guardWidth, 0.036, 0.052);
+    const guardBar = new THREE.Mesh(guardBarGeom, antiqueBronzeMat);
+    guardGroup.add(guardBar);
+
+    // Gold Filigree Accent Ribs along Top and Bottom Rims
+    const bandTop = new THREE.Mesh(new THREE.BoxGeometry(guardWidth + 0.006, 0.008, 0.054), goldAccentMat);
+    bandTop.position.set(0, 0.016, 0);
+    guardGroup.add(bandTop);
+
+    const bandBot = new THREE.Mesh(new THREE.BoxGeometry(guardWidth + 0.006, 0.008, 0.054), goldAccentMat);
+    bandBot.position.set(0, -0.016, 0);
+    guardGroup.add(bandBot);
+
+    // Symmetrical End Finials on Guard
+    const finialL = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 8), goldAccentMat);
+    finialL.position.set(-guardWidth / 2, 0, 0);
+    guardGroup.add(finialL);
+
+    const finialR = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 8), goldAccentMat);
+    finialR.position.set(guardWidth / 2, 0, 0);
+    guardGroup.add(finialR);
+
+    // Raised Diamond Central Boss on Both Sides of Guard
+    const bossGeom = new THREE.OctahedronGeometry(0.020, 0);
+    bossGeom.scale(1.3, 0.7, 1.3);
+    const bossFront = new THREE.Mesh(bossGeom, goldAccentMat);
+    bossFront.position.set(0, 0, -0.027);
+    guardGroup.add(bossFront);
+
+    const bossBack = new THREE.Mesh(bossGeom, goldAccentMat);
+    bossBack.position.set(0, 0, 0.027);
+    guardGroup.add(bossBack);
+
+    sword.add(guardGroup);
+
+    // ==========================================
+    // 3. ERGONOMIC BRAIDED CHARCOAL GRIP
+    // ==========================================
+    const gripGroup = new THREE.Group();
+    const gripLength = 0.17;
+    gripGroup.position.set(0, 0, 0.085);
+
+    // Waisted Ergonomic Wooden / Leather Core
+    const gripGeom = new THREE.CylinderGeometry(0.022, 0.025, gripLength, 12);
+    gripGeom.rotateX(Math.PI / 2);
+    const grip = new THREE.Mesh(gripGeom, gripMat);
+    gripGroup.add(grip);
+
+    // Criss-Cross Gold Wire Lattice Wrapping Bands
+    for (let i = 0; i < 8; i++) {
+      const ringGeom = new THREE.TorusGeometry(0.024, 0.0024, 6, 14);
+      const ring = new THREE.Mesh(ringGeom, goldAccentMat);
+      ring.position.set(0, 0, -gripLength / 2 + 0.02 + i * (gripLength / 8.5));
+      gripGroup.add(ring);
+    }
+
+    sword.add(gripGroup);
+
+    // ==========================================
+    // 4. LOBED TEA-COSY / MUSHROOM POMMEL (UPPER HILT)
+    // ==========================================
+    const pommelGroup = new THREE.Group();
+    pommelGroup.position.set(0, 0, gripLength + 0.02);
+
+    // Lower Pommel Crossbar Collar
+    const pommelBarGeom = new THREE.BoxGeometry(0.14, 0.024, 0.044);
+    const pommelBar = new THREE.Mesh(pommelBarGeom, antiqueBronzeMat);
+    pommelGroup.add(pommelBar);
+
+    // Upper Lobed Mushroom / Tea-Cosy Dome Cap
+    const domeGeom = new THREE.SphereGeometry(0.046, 14, 12);
+    domeGeom.scale(1.4, 0.72, 0.95);
+    const dome = new THREE.Mesh(domeGeom, antiqueBronzeMat);
+    dome.position.set(0, 0, 0.03);
+    pommelGroup.add(dome);
+
+    // Carved Relief Gold Bands on Pommel Dome
+    const pBand = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.004, 6, 16), goldAccentMat);
+    pBand.position.set(0, 0, 0.03);
+    pommelGroup.add(pBand);
+
+    // Top Crown Button Finial
+    const crownBtn = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 8), goldAccentMat);
+    crownBtn.position.set(0, 0, 0.065);
+    pommelGroup.add(crownBtn);
+
+    sword.add(pommelGroup);
+
+    parent.add(sword);
+  }
+
+  private buildPistolModel(parent: THREE.Group) {
+    const pistol = new THREE.Group();
+    pistol.position.set(0, -0.02, 0);
+
+    const stockGeom = new THREE.BoxGeometry(0.05, 0.08, 0.45);
+    const stockMat = new THREE.MeshStandardMaterial({ color: 0x4a2e18, roughness: 0.7 });
+    const stock = new THREE.Mesh(stockGeom, stockMat);
+    stock.position.set(0, -0.04, -0.15);
+    pistol.add(stock);
+
+    const barrelGeom = new THREE.CylinderGeometry(0.018, 0.022, 0.4, 12);
+    barrelGeom.rotateX(Math.PI / 2);
+    const barrelMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.85, roughness: 0.3 });
+    const barrel = new THREE.Mesh(barrelGeom, barrelMat);
+    barrel.position.set(0, 0.02, -0.28);
+    pistol.add(barrel);
+
+    parent.add(pistol);
+  }
+
+  private buildKnifeModel(parent: THREE.Group) {
+    const knife = new THREE.Group();
+    knife.position.set(0.05, -0.1, -0.15);
+    knife.rotation.set(-0.3, 0.2, -0.1);
+
+    const bladeGeom = new THREE.BoxGeometry(0.015, 0.045, 0.35);
+    const bladeMat = new THREE.MeshStandardMaterial({ color: 0xdcdde1, metalness: 0.95, roughness: 0.2 });
+    const blade = new THREE.Mesh(bladeGeom, bladeMat);
+    blade.position.set(0, 0.05, -0.2);
+    knife.add(blade);
+
+    const gripGeom = new THREE.CylinderGeometry(0.02, 0.02, 0.14, 8);
+    const gripMat = new THREE.MeshStandardMaterial({ color: 0x8b6508, roughness: 0.8 });
+    const grip = new THREE.Mesh(gripGeom, gripMat);
+    grip.rotation.x = Math.PI / 2;
+    grip.position.set(0, 0.05, -0.02);
+    knife.add(grip);
+
+    parent.add(knife);
+  }
+
+  private buildMacheteModel(parent: THREE.Group) {
+    const machete = new THREE.Group();
+    machete.position.set(0.05, -0.12, -0.15);
+    machete.rotation.set(-0.25, 0.15, -0.1);
+
+    const bladeGeom = new THREE.BoxGeometry(0.018, 0.09, 0.6);
+    const bladeMat = new THREE.MeshStandardMaterial({ color: 0xbdc3c7, metalness: 0.9, roughness: 0.25 });
+    const blade = new THREE.Mesh(bladeGeom, bladeMat);
+    blade.position.set(0, 0.08, -0.3);
+    machete.add(blade);
+
+    const gripGeom = new THREE.BoxGeometry(0.03, 0.04, 0.16);
+    const gripMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, roughness: 0.9 });
+    const grip = new THREE.Mesh(gripGeom, gripMat);
+    grip.position.set(0, 0.05, -0.02);
+    machete.add(grip);
+
+    parent.add(machete);
+  }
+
+  private buildGrenadeModel(parent: THREE.Group) {
+    const orbGeom = new THREE.SphereGeometry(0.07, 16, 16);
+    const orbMat = new THREE.MeshStandardMaterial({ color: 0x1e272e, metalness: 0.8, roughness: 0.5 });
+    const orb = new THREE.Mesh(orbGeom, orbMat);
+    orb.position.set(0, 0, -0.25);
+    parent.add(orb);
+
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.03, 8), new THREE.MeshStandardMaterial({ color: 0xd4af37 }));
+    cap.position.set(0, 0.075, -0.25);
+    parent.add(cap);
+
+    const wick = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.04, 6), new THREE.MeshStandardMaterial({ color: 0xff4757, emissive: 0xff4757 }));
+    wick.position.set(0, 0.1, -0.25);
+    parent.add(wick);
+  }
+
+  /**
+   * Builds an authentically oriented, beautifully rendered Woodsman Felling Axe
+   * Grip starts at player's hand, handle rises up, forged steel cutting blade faces forward into crosshair.
+   */
+  private buildAxeModel(parent: THREE.Group) {
+    const axeAssembly = new THREE.Group();
+
+    // 1. Hickory Wood Handle (Centered vertically in its local space from bottom 0 to top 0.65m)
+    const handleLength = 0.68;
+    const handleGeom = new THREE.CylinderGeometry(0.016, 0.023, handleLength, 10);
+    handleGeom.translate(0, handleLength / 2, 0); // Bottom pivot at (0,0,0)
+    const handleMat = new THREE.MeshStandardMaterial({
+      color: 0x8b5a2b,
+      roughness: 0.75,
+      metalness: 0.05
+    });
+    const handle = new THREE.Mesh(handleGeom, handleMat);
+    axeAssembly.add(handle);
+
+    // Leather wrapping around bottom grip
+    const gripLength = 0.22;
+    const gripGeom = new THREE.CylinderGeometry(0.025, 0.025, gripLength, 10);
+    gripGeom.translate(0, gripLength / 2 + 0.02, 0);
+    const gripMat = new THREE.MeshStandardMaterial({ color: 0x2b1d0c, roughness: 0.95 });
+    const grip = new THREE.Mesh(gripGeom, gripMat);
+    axeAssembly.add(grip);
+
+    // Bottom pommel knob
+    const pommelGeom = new THREE.SphereGeometry(0.028, 8, 8);
+    pommelGeom.scale(1, 0.6, 1);
+    pommelGeom.translate(0, 0.02, 0);
+    const pommel = new THREE.Mesh(pommelGeom, gripMat);
+    axeAssembly.add(pommel);
+
+    // 2. Forged Steel Axe Head at the TOP end (y = handleLength - 0.04)
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, handleLength - 0.05, 0);
+
+    const steelMat = new THREE.MeshStandardMaterial({
+      color: 0x47535e,
+      metalness: 0.88,
+      roughness: 0.32
+    });
+
+    // Axe Eye Collar wrapping around handle
+    const eyeGeom = new THREE.BoxGeometry(0.048, 0.075, 0.09);
+    const eye = new THREE.Mesh(eyeGeom, steelMat);
+    headGroup.add(eye);
+
+    // Blade / Bit extending FORWARD along -Z (sharp chopping edge pointing directly at crosshair)
+    const bladeGeom = new THREE.BoxGeometry(0.022, 0.16, 0.14);
+    bladeGeom.translate(0, -0.01, -0.09); // Extended forward in -Z, bearded downwards slightly
+    const blade = new THREE.Mesh(bladeGeom, steelMat);
+    headGroup.add(blade);
+
+    // Polished Silver Cutting Edge
+    const edgeGeom = new THREE.BoxGeometry(0.007, 0.175, 0.04);
+    edgeGeom.translate(0, -0.01, -0.17);
+    const sharpEdgeMat = new THREE.MeshStandardMaterial({
+      color: 0xe0e6ed,
+      metalness: 0.98,
+      roughness: 0.12
+    });
+    const edge = new THREE.Mesh(edgeGeom, sharpEdgeMat);
+    headGroup.add(edge);
+
+    // Flat Hammer Poll at the back (+Z)
+    const pollGeom = new THREE.BoxGeometry(0.042, 0.06, 0.055);
+    pollGeom.translate(0, 0, 0.065);
+    const poll = new THREE.Mesh(pollGeom, steelMat);
+    headGroup.add(poll);
+
+    // Top metal wedge pin on handle top
+    const wedgeGeom = new THREE.BoxGeometry(0.012, 0.01, 0.035);
+    wedgeGeom.translate(0, 0.04, 0);
+    const wedge = new THREE.Mesh(wedgeGeom, sharpEdgeMat);
+    headGroup.add(wedge);
+
+    axeAssembly.add(headGroup);
+
+    // 3. Natural First-Person Ready Stance (Forward-angled, poised directly into the crosshair)
+    axeAssembly.position.set(0.06, -0.22, -0.38);
+    axeAssembly.rotation.set(-0.62, 0.0, -0.06);
+
+    parent.add(axeAssembly);
+  }
+
+  private buildShovelModel(parent: THREE.Group) {
+    const shovelAssembly = new THREE.Group();
+
+    // 1. Turned Ash Wood Shaft (bottom at 0, extends upwards along handleLength)
+    const handleLength = 0.72;
+    const handleGeom = new THREE.CylinderGeometry(0.016, 0.020, handleLength, 10);
+    handleGeom.translate(0, handleLength / 2, 0);
+    const handleMat = new THREE.MeshStandardMaterial({
+      color: 0x8b5a2b,
+      roughness: 0.75,
+      metalness: 0.05
+    });
+    const handle = new THREE.Mesh(handleGeom, handleMat);
+    shovelAssembly.add(handle);
+
+    // 2. D-Grip Handle at bottom (held in player's grip hand)
+    const ironMat = new THREE.MeshStandardMaterial({
+      color: 0x2d3436,
+      metalness: 0.88,
+      roughness: 0.35
+    });
+    const dGripBracket = new THREE.Mesh(
+      new THREE.TorusGeometry(0.045, 0.009, 8, 16, Math.PI),
+      ironMat
+    );
+    dGripBracket.position.set(0, 0.02, 0);
+    dGripBracket.rotation.x = Math.PI;
+    shovelAssembly.add(dGripBracket);
+
+    const dGripWood = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.014, 0.014, 0.09, 8),
+      handleMat
+    );
+    dGripWood.rotation.z = Math.PI / 2;
+    dGripWood.position.set(0, -0.025, 0);
+    shovelAssembly.add(dGripWood);
+
+    // 3. Forged Steel Spade Head Group (mounted at handle top, pointing forward towards crosshair)
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, handleLength - 0.04, 0);
+
+    // Socket Collar & Straps wrapping the wood shaft
+    const socketGeom = new THREE.CylinderGeometry(0.024, 0.028, 0.12, 10);
+    const socket = new THREE.Mesh(socketGeom, ironMat);
+    socket.position.set(0, -0.02, 0);
+    headGroup.add(socket);
+
+    // Rivet pins on socket
+    const rivetMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 });
+    for (let i = 0; i < 3; i++) {
+      const rivet = new THREE.Mesh(new THREE.SphereGeometry(0.005, 6, 6), rivetMat);
+      rivet.position.set(0, -0.05 + i * 0.03, 0.025);
+      headGroup.add(rivet);
+    }
+
+    // Curved Spade Scoop Plate (Angled forward in -Z)
+    const spadeBladeGroup = new THREE.Group();
+    spadeBladeGroup.position.set(0, 0.08, -0.05);
+    spadeBladeGroup.rotation.x = -0.32; // Angled forward scoop
+
+    // Main Dish Blade Body
+    const scoopGeom = new THREE.BoxGeometry(0.20, 0.22, 0.018);
+    const scoop = new THREE.Mesh(scoopGeom, ironMat);
+    spadeBladeGroup.add(scoop);
+
+    // Stepped Boot-Treads / Flanges on top shoulders (left and right)
+    const flangeGeom = new THREE.BoxGeometry(0.08, 0.022, 0.04);
+    const flangeL = new THREE.Mesh(flangeGeom, ironMat);
+    flangeL.position.set(-0.065, 0.11, 0.015);
+    spadeBladeGroup.add(flangeL);
+
+    const flangeR = new THREE.Mesh(flangeGeom, ironMat);
+    flangeR.position.set(0.065, 0.11, 0.015);
+    spadeBladeGroup.add(flangeR);
+
+    // Sharp Pointed Leading Digging Edge (Silver polished carbon steel)
+    const sharpEdgeMat = new THREE.MeshStandardMaterial({
+      color: 0xe0e6ed,
+      metalness: 0.98,
+      roughness: 0.15
+    });
+
+    const edgeGeom = new THREE.ConeGeometry(0.14, 0.10, 4);
+    edgeGeom.rotateX(Math.PI);
+    edgeGeom.rotateZ(Math.PI / 4);
+    const edge = new THREE.Mesh(edgeGeom, sharpEdgeMat);
+    edge.position.set(0, -0.14, 0);
+    edge.scale.set(1.4, 1.0, 0.18);
+    spadeBladeGroup.add(edge);
+
+    headGroup.add(spadeBladeGroup);
+    shovelAssembly.add(headGroup);
+
+    // 4. Poised Forward Digging Stance aimed directly at crosshair
+    shovelAssembly.position.set(0.06, -0.22, -0.36);
+    shovelAssembly.rotation.set(-0.62, 0.0, -0.06);
+
+    parent.add(shovelAssembly);
+  }
+
+  private buildMedKitModel(parent: THREE.Group) {
+    const box = new THREE.Group();
+    box.position.set(0.05, -0.08, -0.28);
+
+    const boxGeom = new THREE.BoxGeometry(0.18, 0.14, 0.22);
+    const boxMat = new THREE.MeshStandardMaterial({ color: 0xf5f6fa, roughness: 0.8 });
+    const boxMesh = new THREE.Mesh(boxGeom, boxMat);
+    box.add(boxMesh);
+
+    const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.03, 0.08), new THREE.MeshStandardMaterial({ color: 0xe84118 }));
+    box.add(crossH);
+
+    const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.08, 0.03), new THREE.MeshStandardMaterial({ color: 0xe84118 }));
+    box.add(crossV);
+
+    parent.add(box);
+  }
+
+  /**
+   * Spawns a physical 3D black powder grenade with ballistic toss arc & burning fuse
+   */
+  private throwGrenade() {
+    const throwDir = new THREE.Vector3();
+    this.camera.getWorldDirection(throwDir);
+
+    const grenadeGroup = new THREE.Group();
+
+    // 1. Cast-iron spherical casing
+    const orbGeom = new THREE.SphereGeometry(0.10, 14, 14);
+    const orbMat = new THREE.MeshStandardMaterial({
+      color: 0x1a1a1a,
+      metalness: 0.85,
+      roughness: 0.55
+    });
+    const orb = new THREE.Mesh(orbGeom, orbMat);
+    grenadeGroup.add(orb);
+
+    // 2. Brass neck cap
+    const cap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.02, 0.03, 0.04, 8),
+      new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.3 })
+    );
+    cap.position.set(0, 0.10, 0);
+    grenadeGroup.add(cap);
+
+    // 3. Burning fuse
+    const wick = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.006, 0.006, 0.05, 6),
+      new THREE.MeshBasicMaterial({ color: 0xff3838 })
+    );
+    wick.position.set(0, 0.13, 0);
+    grenadeGroup.add(wick);
+
+    // Spawn slightly in front of camera
+    const spawnPos = this.camera.position.clone().add(throwDir.clone().multiplyScalar(0.6));
+    grenadeGroup.position.copy(spawnPos);
+    this.scene.add(grenadeGroup);
+
+    // Toss velocity with parabolic arc
+    const tossSpeed = 22.0;
+    const velocity = throwDir.clone().multiplyScalar(tossSpeed);
+    velocity.y += 6.0; // Upward toss lob
+
+    const rotVel = new THREE.Vector3(
+      (Math.random() - 0.5) * 14,
+      (Math.random() - 0.5) * 14,
+      (Math.random() - 0.5) * 14
+    );
+
+    this.activeGrenades.push({
+      mesh: grenadeGroup,
+      velocity,
+      rotVel,
+      fuseTimer: 2.5 // 2.5 second fuse countdown
+    });
+
+    soundManager.playSwordSlash(); // Whoosh throw acoustics
+  }
+
+  /**
+   * Detonates black powder grenade: 100 direct HP, 50 indirect splash HP, expanding fireball, smoke & crater
+   */
+  private createExplosion(pos: THREE.Vector3) {
+    const explosionGroup = new THREE.Group();
+    explosionGroup.position.copy(pos);
+
+    // Fiery expanding shockwave fireball (3X Size)
+    const sphereGeom = new THREE.SphereGeometry(1.2, 20, 20);
+    const sphereMat = new THREE.MeshBasicMaterial({
+      color: 0xff5500,
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending
+    });
+    const sphere = new THREE.Mesh(sphereGeom, sphereMat);
+    explosionGroup.add(sphere);
+
+    // Blast point light (3X radius & intensity)
+    const light = new THREE.PointLight(0xff7700, 45, 80);
+    explosionGroup.add(light);
+
+    // Smoke & flying blast debris (3X particle count & velocity)
+    const particleCount = 120;
+    const pGeom = new THREE.BufferGeometry();
+    const pPos = new Float32Array(particleCount * 3);
+    const particleVelocities: THREE.Vector3[] = [];
+
+    for (let i = 0; i < particleCount; i++) {
+      pPos[i * 3] = (Math.random() - 0.5) * 0.8;
+      pPos[i * 3 + 1] = (Math.random() - 0.5) * 0.8;
+      pPos[i * 3 + 2] = (Math.random() - 0.5) * 0.8;
+
+      particleVelocities.push(new THREE.Vector3(
+        (Math.random() - 0.5) * 45,
+        Math.random() * 28 + 6,
+        (Math.random() - 0.5) * 45
+      ));
+    }
+    pGeom.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+    const pMat = new THREE.PointsMaterial({
+      color: 0xffaa33,
+      size: 0.65,
+      transparent: true,
+      opacity: 0.95
+    });
+    const particles = new THREE.Points(pGeom, pMat);
+    explosionGroup.add(particles);
+
+    this.scene.add(explosionGroup);
+    this.activeExplosions.push({
+      group: explosionGroup,
+      sphere,
+      light,
+      particles,
+      particleVelocities,
+      age: 0,
+      maxAge: 1.3
+    });
+
+    // Play explosion acoustic boom
+    soundManager.playExplosion();
+
+    // Damage calculations: 3X Area - 100 HP Direct (<=10.5 yds), 50 HP Indirect (<=30.0 yds)
+    const directRadius = 10.5;
+    const splashRadius = 30.0;
+
+    // 1. Blast damage to player
+    const distToPlayer = pos.distanceTo(this.controls.position);
+    if (distToPlayer <= directRadius) {
+      this.controls.health = Math.max(0, this.controls.health - 100);
+      if (this.controls.health <= 0) {
+        this.controls.causeOfDeath = 'Blown to Pieces by Black Powder Grenade';
+      }
+    } else if (distToPlayer <= splashRadius) {
+      this.controls.health = Math.max(0, this.controls.health - 50);
+      if (this.controls.health <= 0) {
+        this.controls.causeOfDeath = 'Mortally Wounded by Grenade Shrapnel';
+      }
+    }
+
+    // 2. Felling / damaging trees in blast radius
+    if (this.colonialWorld) {
+      const nearbyObs = this.colonialWorld.getObstaclesNear(pos.x, pos.z, splashRadius);
+      for (const obs of nearbyObs) {
+        if (obs.type === 'tree' && obs.id) {
+          const d = Math.hypot(obs.x - pos.x, obs.z - pos.z);
+          const dmg = d <= directRadius ? 100 : 50;
+          const blastDir = new THREE.Vector3(obs.x - pos.x, 0.25, obs.z - pos.z).normalize();
+          const res = this.colonialWorld.hitTree(obs.id, dmg, blastDir);
+          if (res.felled && res.woodYield > 0) {
+            this.controls.addWood(res.woodYield);
+            if (this.onHarvestWoodCb) {
+              this.onHarvestWoodCb(res.woodYield);
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Dig massive blast crater into terrain
+    this.terrain.digAt(pos.x, pos.z, 2.4);
+  }
+
+  /**
+   * Action trigger (Shooting, Slashing, Digging, Healing, Building) with reload time checks
+   */
+  public triggerWeaponAction() {
+    if (this.controls.isSlotReloading() || this.isAttacking) return;
+
+    // 1. Handle 1776 Frontier Construction Placement if in Building Mode
+    if (this.controls.isBuildingMode) {
+      const selectedType = this.controls.selectedBuilding;
+      const bp = BUILDING_BLUEPRINTS[selectedType];
+      
+      if (this.controls.inventory.wood >= bp.woodCost) {
+        this.controls.inventory.wood -= bp.woodCost;
+
+        const forward = new THREE.Vector3();
+        this.camera.getWorldDirection(forward);
+        const targetX = this.controls.position.x + forward.x * 6.5;
+        const targetZ = this.controls.position.z + forward.z * 6.5;
+        const targetY = this.terrain.getHeightAt(targetX, targetZ);
+
+        this.colonialWorld.spawnBuilding(
+          selectedType,
+          targetX,
+          targetY,
+          targetZ,
+          this.controls.buildingRotation
+        );
+
+        this.colonialWorld.createWoodChips(targetX, targetY + 1.2, targetZ, 22);
+
+        this.isAttacking = true;
+        this.attackProgress = 1.0;
+        setTimeout(() => {
+          this.isAttacking = false;
+        }, 280);
+      } else {
+        soundManager.playCantBuild();
+      }
+      return;
+    }
+
+    this.isAttacking = true;
+    this.attackProgress = 1.0;
+
+    const slot = this.controls.activeSlot;
+
+    if (slot === 'main') {
+      const mainId = this.loadout.mainWeapon;
+      const mainInfo = MAIN_WEAPONS[mainId];
+
+      if (mainId === 'sword') {
+        this.isSwinging = true;
+        soundManager.playSwordSlash();
+      } else if (mainId === 'kentucky') {
+        this.isSwinging = false;
+        soundManager.playRifleCrack();
+        this.triggerMuzzleFlash();
+        this.controls.startReload(mainInfo.reloadTime);
+      } else if (mainId === 'brown_bess') {
+        this.isSwinging = false;
+        soundManager.playMusketFire();
+        this.triggerMuzzleFlash();
+        this.controls.startReload(mainInfo.reloadTime);
+      } else {
+        this.isSwinging = false;
+        soundManager.playMusketFire();
+        this.triggerMuzzleFlash();
+        this.controls.startReload(mainInfo.reloadTime);
+      }
+    } else if (slot === 'sub') {
+      const subId = this.loadout.subWeapon;
+      const subInfo = SUB_WEAPONS[subId];
+
+      if (subId === 'knife' || subId === 'machete') {
+        this.isSwinging = true;
+        soundManager.playSwordSlash();
+      } else if (subId === 'grenade') {
+        this.isSwinging = true;
+        this.throwGrenade();
+        // 2x reload time: 80.0 second reload cooldown for grenades
+        this.controls.startReload(80.0);
+      } else {
+        this.isSwinging = false;
+        soundManager.playPistolShot();
+        this.triggerMuzzleFlash();
+        this.controls.startReload(subInfo.reloadTime);
+      }
+    } else {
+      const toolId = this.loadout.tool;
+      this.isSwinging = true;
+
+      if (toolId === 'axe') {
+        // Find tree in reach and chop for 15 damage (3 shots = 45 HP)
+        const forwardDir = new THREE.Vector3();
+        this.camera.getWorldDirection(forwardDir);
+        const targetTree = this.colonialWorld.findTreeInReach(this.controls.position, forwardDir, 4.8);
+
+        if (targetTree && targetTree.id) {
+          const spec = SPECIALTIES[this.loadout.specialty];
+          const dmg = TOOLS.axe.damage * (spec ? spec.modifiers.damageMultiplier : 1.0);
+          const res = this.colonialWorld.hitTree(targetTree.id, dmg, forwardDir);
+
+          if (res.felled && res.woodYield > 0) {
+            this.controls.addWood(res.woodYield);
+            if (this.onHarvestWoodCb) {
+              this.onHarvestWoodCb(res.woodYield);
+            }
+          }
+        } else {
+          soundManager.playToolAction('axe');
+        }
+      } else if (toolId === 'shovel') {
+        soundManager.playToolAction('shovel');
+        this.shovelSwings++;
+        if (this.shovelSwings % 4 === 0) {
+          // Dig 3 feet of dirt (3.0 ft) into the earth at the player's front location
+          const forwardDir = new THREE.Vector3();
+          this.camera.getWorldDirection(forwardDir);
+          const digX = this.controls.position.x + forwardDir.x * 1.5;
+          const digZ = this.controls.position.z + forwardDir.z * 1.5;
+          this.terrain.digAt(digX, digZ, 3.0);
+          this.colonialWorld.createWoodChips(digX, this.controls.position.y - 1.2, digZ, 18);
+        }
+      } else if (toolId === 'med_kit') {
+        soundManager.playToolAction(toolId);
+        // Heals 20 health
+        const healAmt = 20 * (this.loadout.specialty === 'healer' ? 1.5 : 1.0);
+        this.controls.health = Math.min(this.controls.maxHealth, this.controls.health + healAmt);
+        // 1 minute (60s) reload cooldown!
+        this.controls.startReload(60.0);
+      } else {
+        soundManager.playToolAction(toolId);
+      }
+    }
+
+    setTimeout(() => {
+      this.isAttacking = false;
+    }, 380);
+  }
+
+  private triggerMuzzleFlash() {
+    if (this.muzzleFlashLight) {
+      this.muzzleFlashLight.intensity = 8;
+      setTimeout(() => {
+        if (this.muzzleFlashLight) this.muzzleFlashLight.intensity = 0;
+      }, 75);
+    }
+  }
+
+  public onWindowResize() {
+    if (!this.container) return;
+    const width = this.container.clientWidth;
+    const height = this.container.clientHeight;
+    this.camera.aspect = width / (height || 1);
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(width, height);
+  }
+
+  public setOnStateUpdate(callback: (state: PlayerState) => void) {
+    this.onStateUpdateCb = callback;
+  }
+
+  public start() {
+    if (this.isRunning) return;
+    this.isRunning = true;
+    this.clock.start();
+    this.animate();
+  }
+
+  public stop() {
+    this.isRunning = false;
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+  }
+
+  private animate = () => {
+    if (!this.isRunning) return;
+
+    this.animationFrameId = requestAnimationFrame(this.animate);
+
+    const delta = this.clock.getDelta();
+    const elapsedTime = this.clock.getElapsedTime();
+
+    const playerState = this.controls.update(delta);
+
+    // Dynamic Viewmodel Animations: Chopping Swing, Gun Recoil, or Reload
+    this.attackProgress = THREE.MathUtils.lerp(this.attackProgress, 0, delta * 12);
+
+    if (this.controls.isSlotReloading()) {
+      // Reloading motion (lowering barrel/weapon slightly and ramming/cocking motion)
+      const rPhase = Math.sin(playerState.reloadProgress * Math.PI * 3);
+      this.weaponPivot.position.y = -0.32 + rPhase * 0.04;
+      this.weaponPivot.position.z = -0.42;
+      this.weaponPivot.rotation.x = -0.32 + rPhase * 0.08;
+      this.weaponPivot.rotation.z = -0.15 + rPhase * 0.04;
+    } else if (this.isSwinging) {
+      // Powerful forward-driving downward chop
+      const swingPhase = Math.sin(this.attackProgress * Math.PI);
+      this.weaponPivot.position.x = 0.24;
+      this.weaponPivot.position.y = -0.22 - swingPhase * 0.30; // Deep downward cleave
+      this.weaponPivot.position.z = -0.48 - swingPhase * 0.45; // Thrusts deeply FORWARD into target (-Z)
+      this.weaponPivot.rotation.x = -swingPhase * 1.70; // Direct forward-downward chop rotation
+      this.weaponPivot.rotation.y = 0;
+      this.weaponPivot.rotation.z = 0;
+    } else {
+      // Normal idle / gun firing recoil
+      this.weaponPivot.position.set(0.24, -0.22, -0.48 + this.attackProgress * 0.16);
+      this.weaponPivot.rotation.set(-this.attackProgress * 0.35, 0, 0);
+    }
+
+    // World animation (waving flags, drifting clouds & undulating ocean swells)
+    if (this.waterMesh) {
+      this.waterMesh.position.y = 10.0 + Math.sin(elapsedTime * 1.4) * 0.12;
+    }
+    this.colonialWorld.update(elapsedTime, delta);
+
+    // Active Throwable Grenade Projectiles Simulation
+    for (let i = this.activeGrenades.length - 1; i >= 0; i--) {
+      const g = this.activeGrenades[i];
+      g.velocity.y -= 25 * delta; // Gravity
+      g.mesh.position.addScaledVector(g.velocity, delta);
+      g.mesh.rotation.x += g.rotVel.x * delta;
+      g.mesh.rotation.y += g.rotVel.y * delta;
+
+      // Terrain Ground Collision & Bounce
+      const terrainY = this.terrain.getHeightAt(g.mesh.position.x, g.mesh.position.z);
+      if (g.mesh.position.y <= terrainY + 0.12) {
+        g.mesh.position.y = terrainY + 0.12;
+        g.velocity.y = -g.velocity.y * 0.45; // Energy loss bounce
+        g.velocity.x *= 0.82;
+        g.velocity.z *= 0.82;
+        g.rotVel.multiplyScalar(0.85);
+      }
+
+      g.fuseTimer -= delta;
+      if (g.fuseTimer <= 0) {
+        this.createExplosion(g.mesh.position.clone());
+        this.scene.remove(g.mesh);
+        this.activeGrenades.splice(i, 1);
+      }
+    }
+
+    // Active Explosion Fireball & Particle Effects
+    for (let i = this.activeExplosions.length - 1; i >= 0; i--) {
+      const ex = this.activeExplosions[i];
+      ex.age += delta;
+      const progress = ex.age / ex.maxAge;
+
+      // Fireball shockwave expansion & fade (3X Scale)
+      const scale = 1.0 + progress * 24.0;
+      ex.sphere.scale.set(scale, scale, scale);
+      (ex.sphere.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1.0 - progress);
+      ex.light.intensity = Math.max(0, 45 * (1.0 - progress));
+
+      // Smoke and debris particle propagation
+      const positions = ex.particles.geometry.attributes.position.array as Float32Array;
+      for (let p = 0; p < ex.particleVelocities.length; p++) {
+        const vel = ex.particleVelocities[p];
+        vel.y -= 16 * delta;
+        positions[p * 3] += vel.x * delta;
+        positions[p * 3 + 1] += vel.y * delta;
+        positions[p * 3 + 2] += vel.z * delta;
+      }
+      ex.particles.geometry.attributes.position.needsUpdate = true;
+      (ex.particles.material as THREE.PointsMaterial).opacity = Math.max(0, 1.0 - progress);
+
+      if (ex.age >= ex.maxAge) {
+        this.scene.remove(ex.group);
+        this.activeExplosions.splice(i, 1);
+      }
+    }
+
+    // 1776 Frontier Building Holographic Placement Preview
+    if (this.controls.isBuildingMode) {
+      const selectedType = this.controls.selectedBuilding;
+      const bp = BUILDING_BLUEPRINTS[selectedType];
+      const hasWood = (this.controls.inventory.wood >= bp.woodCost);
+
+      if (!this.ghostBuildingMesh || this.ghostBuildingType !== selectedType || this.ghostBuildingValid !== hasWood) {
+        if (this.ghostBuildingMesh) {
+          this.scene.remove(this.ghostBuildingMesh);
+        }
+        this.ghostBuildingMesh = this.colonialWorld.createBuildingMesh(selectedType, true, hasWood);
+        this.scene.add(this.ghostBuildingMesh);
+        this.ghostBuildingType = selectedType;
+        this.ghostBuildingValid = hasWood;
+      }
+
+      const forward = new THREE.Vector3();
+      this.camera.getWorldDirection(forward);
+      const targetX = this.controls.position.x + forward.x * 6.5;
+      const targetZ = this.controls.position.z + forward.z * 6.5;
+      const targetY = this.terrain.getHeightAt(targetX, targetZ);
+
+      this.ghostBuildingMesh.position.set(targetX, targetY, targetZ);
+      this.ghostBuildingMesh.rotation.y = this.controls.buildingRotation;
+
+      // Lower weapon viewmodel during building preview
+      this.weaponPivot.position.y = -0.55;
+    } else {
+      if (this.ghostBuildingMesh) {
+        this.scene.remove(this.ghostBuildingMesh);
+        this.ghostBuildingMesh = null;
+        this.ghostBuildingType = null;
+      }
+    }
+
+    this.renderer.render(this.scene, this.camera);
+
+    if (this.onStateUpdateCb) {
+      this.onStateUpdateCb(playerState);
+    }
+  };
+
+  public getLandmarks(): Landmark[] {
+    return this.colonialWorld.landmarks;
+  }
+
+  public getMapDataUrl(size: number = 400): string {
+    return this.terrain.generateMapDataUrl(size);
+  }
+
+  public respawn() {
+    this.controls.respawn();
+  }
+
+  public destroy() {
+    this.stop();
+    window.removeEventListener('resize', this.onResizeBound);
+    this.controls.destroy();
+
+    // Clean up holographic ghost building preview
+    if (this.ghostBuildingMesh) {
+      this.scene.remove(this.ghostBuildingMesh);
+      this.ghostBuildingMesh = null;
+    }
+
+    // Clean up any remaining grenades & explosions
+    for (const g of this.activeGrenades) {
+      this.scene.remove(g.mesh);
+    }
+    this.activeGrenades = [];
+
+    for (const ex of this.activeExplosions) {
+      this.scene.remove(ex.group);
+    }
+    this.activeExplosions = [];
+
+    this.renderer.dispose();
+    if (this.renderer.domElement.parentElement) {
+      this.renderer.domElement.parentElement.removeChild(this.renderer.domElement);
+    }
+  }
+}

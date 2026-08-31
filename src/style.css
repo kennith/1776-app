@@ -1,0 +1,129 @@
+:root {
+  --color-colonial-blue: #1b263b;
+  --color-colonial-navy: #0d1b2a;
+  --color-flag-red: #B22234;
+  --color-flag-white: #F4F3EE;
+  --color-flag-blue: #1D2A44;
+  --color-patriot-gold: #D4AF37;
+  --color-antique-gold: #C5A059;
+  --color-parchment: #F5E6C8;
+  --color-dark-parchment: #E6D5AC;
+  --color-leather: #5C3D2E;
+  --color-gunpowder: #2B2D42;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #0b0f19;
+  color: var(--color-parchment);
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-antique-gold);
+  border-radius: 4px;
+}
+
+/* Authentic Colonial Typography */
+.font-cinzel {
+  font-family: 'Cinzel', serif;
+}
+
+.font-cinzel-dec {
+  font-family: 'Cinzel Decorative', serif;
+}
+
+.font-fell {
+  font-family: 'IM Fell English', Georgia, serif;
+}
+
+/* Vintage parchment texture effects */
+.parchment-border {
+  border: 3px double var(--color-patriot-gold);
+  box-shadow: 
+    0 0 0 1px rgba(212, 175, 55, 0.3),
+    0 10px 30px rgba(0, 0, 0, 0.8),
+    inset 0 0 25px rgba(0, 0, 0, 0.5);
+}
+
+.gold-glow {
+  text-shadow: 
+    0 0 10px rgba(212, 175, 55, 0.6),
+    0 0 20px rgba(212, 175, 55, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.9);
+}
+
+/* Waving Flag Animation Keyframes */
+@keyframes flagWaveVertical {
+  0% {
+    transform: perspective(1000px) rotateY(-5deg) skewY(-1deg) translateY(0px);
+  }
+  50% {
+    transform: perspective(1000px) rotateY(6deg) skewY(1.5deg) translateY(-8px);
+  }
+  100% {
+    transform: perspective(1000px) rotateY(-5deg) skewY(-1deg) translateY(0px);
+  }
+}
+
+@keyframes flagRipple {
+  0% {
+    filter: drop-shadow(0 15px 15px rgba(0, 0, 0, 0.7)) brightness(1);
+    background-position: 0% 50%;
+  }
+  50% {
+    filter: drop-shadow(0 25px 25px rgba(0, 0, 0, 0.9)) brightness(1.15);
+    background-position: 100% 50%;
+  }
+  100% {
+    filter: drop-shadow(0 15px 15px rgba(0, 0, 0, 0.7)) brightness(1);
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 
+      0 0 25px rgba(212, 175, 55, 0.5),
+      0 0 50px rgba(178, 34, 52, 0.4),
+      inset 0 0 20px rgba(212, 175, 55, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 
+      0 0 45px rgba(212, 175, 55, 0.8),
+      0 0 80px rgba(29, 42, 68, 0.6),
+      inset 0 0 35px rgba(212, 175, 55, 0.7);
+    transform: scale(1.025);
+  }
+}
+
+@keyframes starShimmer {
+  0% { opacity: 0.7; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 0.7; transform: scale(0.95); }
+}

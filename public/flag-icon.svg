@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 65" width="100" height="65">
+  <!-- 13 Stripes -->
+  <rect width="100" height="5" y="0" fill="#B22234"/>
+  <rect width="100" height="5" y="5" fill="#FFFFFF"/>
+  <rect width="100" height="5" y="10" fill="#B22234"/>
+  <rect width="100" height="5" y="15" fill="#FFFFFF"/>
+  <rect width="100" height="5" y="20" fill="#B22234"/>
+  <rect width="100" height="5" y="25" fill="#FFFFFF"/>
+  <rect width="100" height="5" y="30" fill="#B22234"/>
+  <rect width="100" height="5" y="35" fill="#FFFFFF"/>
+  <rect width="100" height="5" y="40" fill="#B22234"/>
+  <rect width="100" height="5" y="45" fill="#FFFFFF"/>
+  <rect width="100" height="5" y="50" fill="#B22234"/>
+  <rect width="100" height="5" y="55" fill="#FFFFFF"/>
+  <rect width="100" height="5" y="60" fill="#B22234"/>
+  <!-- Blue Canton (7 stripes high) -->
+  <rect width="40" height="35" fill="#3C3B6E"/>
+  <!-- 13 Stars in a Circle (Betsy Ross 1777 Flag) -->
+  <g fill="#FFFFFF" transform="translate(20, 17.5)">
+    <!-- 13 stars rotated evenly (27.69 deg each) at radius 11 -->
+    <polygon points="0,-1.8 0.5,-0.5 1.8,-0.5 0.7,0.3 1.1,1.5 0,0.7 -1.1,1.5 -0.7,0.3 -1.8,-0.5 -0.5,-0.5" transform="rotate(0) translate(0, -11) scale(1.1)"/>
+    <polygon points="0,-1.8 0.5,-0.5 1.8,-0.5 0.7,0.3 1.1,1.5 0,0.7 -1.1,1.5 -0.7,0.3 -1.8,-0.5 -0.5,-0.5" transform="rotate(27.69) translate(0, -11) scale(1.1)"/>
+    <polygon points="0,-1.8 0.5,-0.5 1.8,-0.5 0.7,0.3 1.1,1.5 0,0.7 -1.1,1.5 -0.7,0.3 -1.8,-0.5 -0.5,-0.5" transform="rotate(55.38) translate(0, -11) scale(1.1)"/>
+    <polygon points="0,-1.8 0.5,-0.5 1.8,-0.5 0.7,0.3 1.1,1.5 0,0.7 -1.1,1.5 -0.7,0.3 -1.8,-0.5 -0.5,-0.5" transform="rotate(83.07) translate(0, -11) scale(1.1)"/>
+    <polygon points="0,-1.8 0.5,-0.5 1.8,-0.5 0.7,0.3 1.1,1.5 0,0.7 -1.1,1.5 -0.7,0.3 -1.8,-0.5 -0.5,-0.5" transform="rotate(110.76) translate(0, -11) scale(1.1)"/>
+    <polygon points="0,-1.8 0.5,-0.5 1.8,-0.5 0.7,0.3 1.1,1.5 0,0.7 -1.1,1.5 -0.7,0.3 -1.8,-0.5 -0.5,-0.5" transform="rotate(138.45) translate(0, -11) scale(1.1)"/>
+    <polygon points="0,-1.8 0.5,-0.5 1.8,-0.5 0.7,0.3 1.1,1.5 0,0.7 -1.1,1.5 -0.7,0.3 -1.8,-0.5 -0.5,-0.5" transform="rotate(166.14) translate(0, -11) scale(1.1)"/>
+    <polygon points="0,-1.8 0.5,-0.5 1.8,-0.5 0.7,0.3 1.1,1.5 0,0.7 -1.1,1.5 -0.7,0.3 -1.8,-0.5 -0.5,-0.5" transform="rotate(193.83) translate(0, -11) scale(1.1)"/>
+    <polygon points="0,-1.8 0.5,-0.5 1.8,-0.5 0.7,0.3 1.1,1.5 0,0.7 -1.1,1.5 -0.7,0.3 -1.8,-0.5 -0.5,-0.5" transform="rotate(221.52) translate(0, -11) scale(1.1)"/>
+    <polygon points="0,-1.8 0.5,-0.5 1.8,-0.5 0.7,0.3 1.1,1.5 0,0.7 -1.1,1.5 -0.7,0.3 -1.8,-0.5 -0.5,-0.5" transform="rotate(249.21) translate(0, -11) scale(1.1)"/>
+    <polygon points="0,-1.8 0.5,-0.5 1.8,-0.5 0.7,0.3 1.1,1.5 0,0.7 -1.1,1.5 -0.7,0.3 -1.8,-0.5 -0.5,-0.5" transform="rotate(276.9) translate(0, -11) scale(1.1)"/>
+    <polygon points="0,-1.8 0.5,-0.5 1.8,-0.5 0.7,0.3 1.1,1.5 0,0.7 -1.1,1.5 -0.7,0.3 -1.8,-0.5 -0.5,-0.5" transform="rotate(304.59) translate(0, -11) scale(1.1)"/>
+    <polygon points="0,-1.8 0.5,-0.5 1.8,-0.5 0.7,0.3 1.1,1.5 0,0.7 -1.1,1.5 -0.7,0.3 -1.8,-0.5 -0.5,-0.5" transform="rotate(332.28) translate(0, -11) scale(1.1)"/>
+  </g>
+</svg>
