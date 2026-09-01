@@ -109,7 +109,7 @@ export interface Landmark {
   x: number;
   z: number;
   y: number;
-  type: 'fort' | 'camp' | 'flag' | 'tower' | 'monument';
+  type: 'fort' | 'camp' | 'flag' | 'tower' | 'monument' | 'settlement' | 'water';
   description: string;
 }
 

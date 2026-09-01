@@ -75,8 +75,86 @@ export class ColonialWorld {
   public populate() {
     this.setupLighting();
     this.setupSkyAndFog();
+    this.setupLandmarks();
     this.spawnFoliage();
     this.spawnClouds();
+  }
+
+  private setupLandmarks() {
+    this.landmarks = [
+      {
+        id: 'flat_commons',
+        name: 'Pioneer Commons (Flat Area #1)',
+        type: 'settlement',
+        x: 80,
+        z: 140,
+        y: 20.0,
+        description: 'Expansive 170m wide level plain at y=20m, prime location for colonial settlements & fortifications.'
+      },
+      {
+        id: 'flat_citadel',
+        name: 'Highland Citadel Mesa (Flat Area #2)',
+        type: 'fort',
+        x: 420,
+        z: -180,
+        y: 35.0,
+        description: 'Strategic elevated flat mesa at y=35m overlooking the northern river valley & great lake.'
+      },
+      {
+        id: 'flat_prairie',
+        name: 'Western Prairie Grounds (Flat Area #3)',
+        type: 'settlement',
+        x: -400,
+        z: 120,
+        y: 18.0,
+        description: 'Sprawling flat meadow between the western mountain crags and emerald forest lake.'
+      },
+      {
+        id: 'spawn_point',
+        name: 'Frontier Outpost (Spawn)',
+        type: 'camp',
+        x: 0,
+        z: 0,
+        y: 20.0,
+        description: 'Continental expedition outpost & muster ground.'
+      },
+      {
+        id: 'lake_north',
+        name: 'Lake Champlain Basin',
+        type: 'water',
+        x: 340,
+        z: -520,
+        y: 10.0,
+        description: 'Northern deep water reservoir.'
+      },
+      {
+        id: 'lake_nw',
+        name: 'Northwest Alpine Lake',
+        type: 'water',
+        x: -580,
+        z: -520,
+        y: 10.0,
+        description: 'Glacial alpine lake amidst mountain crags.'
+      },
+      {
+        id: 'lake_sw',
+        name: 'Emerald Forest Lake',
+        type: 'water',
+        x: -520,
+        z: 520,
+        y: 10.0,
+        description: 'Dense woodland lake teeming with timber pines.'
+      },
+      {
+        id: 'lake_se',
+        name: 'Highland Mirror Lake',
+        type: 'water',
+        x: 550,
+        z: 540,
+        y: 10.0,
+        description: 'Pristine highland lake reflecting the southern sky.'
+      }
+    ];
   }
 
   private getGridKey(x: number, z: number): string {
@@ -430,6 +508,12 @@ export class ColonialWorld {
       const z = (Math.random() - 0.5) * spread * 2;
       
       if (Math.hypot(x, z) < 18) continue;
+
+      // Keep the 3 flat building areas open and clear for construction
+      const flat = this.terrain.getFlatAreaProfile(x, z);
+      if (flat.isFlatArea && flat.blendFactor > 0.5 && Math.random() < 0.82) {
+        continue; // Leave flat area core open with occasional peripheral trees
+      }
 
       const y = this.terrain.getHeightAt(x, z);
 

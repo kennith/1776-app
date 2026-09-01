@@ -124,10 +124,38 @@ export class TerrainGenerator {
   }
 
   /**
+   * 3 Designated Flat Building & Settlement Areas:
+   * 1. Pioneer Commons (Central North Plain): (x: 80, z: 140, radius: 85m, elevation: 20.0m)
+   * 2. Highland Citadel Mesa (Eastern Highlands): (x: 420, z: -180, radius: 95m, elevation: 35.0m)
+   * 3. Prairie Drill Grounds (Western Flatlands): (x: -400, z: 120, radius: 90m, elevation: 18.0m)
+   */
+  public getFlatAreaProfile(x: number, z: number): { isFlatArea: boolean; targetHeight: number; blendFactor: number } {
+    const flatAreas = [
+      { id: 'flat_commons', x: 80, z: 140, radius: 85, margin: 25, flatY: 20.0 },
+      { id: 'flat_citadel', x: 420, z: -180, radius: 95, margin: 30, flatY: 35.0 },
+      { id: 'flat_prairie', x: -400, z: 120, radius: 90, margin: 28, flatY: 18.0 }
+    ];
+
+    for (const area of flatAreas) {
+      const dist = Math.hypot(x - area.x, z - area.z);
+      if (dist < area.radius + area.margin) {
+        if (dist <= area.radius) {
+          return { isFlatArea: true, targetHeight: area.flatY, blendFactor: 1.0 };
+        }
+        const t = (dist - area.radius) / area.margin;
+        const smoothT = 1.0 - (t * t * (3 - 2 * t));
+        return { isFlatArea: true, targetHeight: area.flatY, blendFactor: smoothT };
+      }
+    }
+
+    return { isFlatArea: false, targetHeight: 0, blendFactor: 0 };
+  }
+
+  /**
    * Calculates the exact terrain height at coordinate (x, z)
    * Guaranteed to maintain solid dry land across the continent,
    * carving 1 thick East-to-West river and 4 distinct regional lakes,
-   * and tapering down into an endless sea at the borders.
+   * 3 large flat settlement plateaus, and tapering down into an endless sea at the borders.
    */
   public getHeightAt(x: number, z: number): number {
     // Domain warping for natural mountain ridges
@@ -164,6 +192,12 @@ export class TerrainGenerator {
       const mountainT = (t - 0.25) / 0.75;
       const smoothMountainT = mountainT * mountainT * (3 - 2 * mountainT);
       height = THREE.MathUtils.lerp(this.config.baselineY, this.config.maxMountainY, smoothMountainT);
+    }
+
+    // 3 Flat Building & Settlement Areas (Plateaus & Plains)
+    const flat = this.getFlatAreaProfile(x, z);
+    if (flat.isFlatArea) {
+      height = THREE.MathUtils.lerp(height, flat.targetHeight, flat.blendFactor);
     }
 
     // Carve the thick East-to-West Middle River + 4 Regional Lakes
