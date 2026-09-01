@@ -91,6 +91,11 @@ export interface PlayerState {
   selectedBuilding: BuildingId;
   buildingRotation: number;
   isCrouching: boolean;
+  isConstructing: boolean;
+  constructionProgress: number; // 0.0 to 1.0
+  constructionTimeTotal: number; // total in seconds
+  constructionRemaining: number; // remaining in seconds
+  constructingBuildingName: string;
 }
 
 export interface Landmark {
@@ -391,6 +396,7 @@ export interface BuildingBlueprint {
   name: string;
   category: 'utility' | 'defense' | 'shelter';
   woodCost: number;
+  buildTime: number; // in seconds
   description: string;
   icon: string;
   width: number;
@@ -405,6 +411,7 @@ export const BUILDING_BLUEPRINTS: Record<BuildingId, BuildingBlueprint> = {
     name: 'Frontier Campfire',
     category: 'utility',
     woodCost: 6, // 6 Wood Timber
+    buildTime: 1.5, // 1.5s build time
     description: 'Stone-ringed burning timber fire with warm glow & embers.',
     icon: '🔥',
     width: 1.6,
@@ -417,6 +424,7 @@ export const BUILDING_BLUEPRINTS: Record<BuildingId, BuildingBlueprint> = {
     name: 'Log Palisade Wall',
     category: 'defense',
     woodCost: 12, // 12 Wood Timber
+    buildTime: 2.5, // 2.5s build time
     description: 'Defensive wooden log barricade with sharpened spikes for fortresses.',
     icon: '🪵',
     width: 4.2,
@@ -429,6 +437,7 @@ export const BUILDING_BLUEPRINTS: Record<BuildingId, BuildingBlueprint> = {
     name: 'Timber Plank Ramp / Bridge',
     category: 'utility',
     woodCost: 15, // 15 Wood Timber
+    buildTime: 3.0, // 3.0s build time
     description: 'Elevated wooden ramp to cross ocean water, trenches, or ascend cliffs.',
     icon: '🪜',
     width: 3.2,
@@ -441,6 +450,7 @@ export const BUILDING_BLUEPRINTS: Record<BuildingId, BuildingBlueprint> = {
     name: 'Frontier Log Cabin',
     category: 'shelter',
     woodCost: 35, // 35 Wood Timber
+    buildTime: 5.0, // 5.0s build time
     description: 'Solid four-walled wooden cabin with pitched roof and doorway shelter.',
     icon: '🛖',
     width: 5.2,
@@ -453,6 +463,7 @@ export const BUILDING_BLUEPRINTS: Record<BuildingId, BuildingBlueprint> = {
     name: 'Continental Watchtower',
     category: 'defense',
     woodCost: 50, // 50 Wood Timber
+    buildTime: 6.5, // 6.5s build time
     description: 'High wooden lookout post with top observation deck for long-range reconnaissance.',
     icon: '🏰',
     width: 4.2,

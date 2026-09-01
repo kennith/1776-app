@@ -46,10 +46,15 @@ export class GameEngine {
   private activeGrenades: ActiveGrenade[] = [];
   private activeExplosions: ActiveExplosion[] = [];
 
-  // 1776 Frontier Building Hologram Preview
+  // 1776 Frontier Building Hologram Preview & Construction Channeling
   private ghostBuildingMesh: THREE.Group | null = null;
   private ghostBuildingType: BuildingId | null = null;
   private ghostBuildingValid: boolean = true;
+  private isConstructing: boolean = false;
+  private constructionTimer: number = 0;
+  private constructionDuration: number = 0;
+  private constructionTarget: { x: number; y: number; z: number; rot: number; type: BuildingId } | null = null;
+  private hammerSoundTimer: number = 0;
 
   private clock: THREE.Clock;
   private animationFrameId: number | null = null;
@@ -910,33 +915,32 @@ export class GameEngine {
 
     // 1. Handle 1776 Frontier Construction Placement if in Building Mode
     if (this.controls.isBuildingMode) {
+      if (this.isConstructing) return; // Already actively building!
+
       const selectedType = this.controls.selectedBuilding;
       const bp = BUILDING_BLUEPRINTS[selectedType];
       
       if (this.controls.inventory.wood >= bp.woodCost) {
-        this.controls.inventory.wood -= bp.woodCost;
-
         const forward = new THREE.Vector3();
         this.camera.getWorldDirection(forward);
         const targetX = this.controls.position.x + forward.x * 6.5;
         const targetZ = this.controls.position.z + forward.z * 6.5;
         const targetY = this.terrain.getHeightAt(targetX, targetZ);
 
-        this.colonialWorld.spawnBuilding(
-          selectedType,
-          targetX,
-          targetY,
-          targetZ,
-          this.controls.buildingRotation
-        );
+        this.isConstructing = true;
+        this.constructionTimer = 0;
+        this.constructionDuration = bp.buildTime;
+        this.constructionTarget = {
+          x: targetX,
+          y: targetY,
+          z: targetZ,
+          rot: this.controls.buildingRotation,
+          type: selectedType
+        };
+        this.hammerSoundTimer = 0;
 
-        this.colonialWorld.createWoodChips(targetX, targetY + 1.2, targetZ, 22);
-
-        this.isAttacking = true;
-        this.attackProgress = 1.0;
-        setTimeout(() => {
-          this.isAttacking = false;
-        }, 280);
+        soundManager.playHammerStrike();
+        this.colonialWorld.createWoodChips(targetX, targetY + 0.4, targetZ, 8);
       } else {
         soundManager.playCantBuild();
       }
@@ -1176,6 +1180,86 @@ export class GameEngine {
       }
     }
 
+    // 1776 Frontier Construction Progress Channeling
+    if (this.isConstructing && this.constructionTarget) {
+      if (!this.controls.isBuildingMode || this.controls.isDead) {
+        this.cancelBuilding();
+      } else {
+        const pDist = Math.hypot(
+          this.controls.position.x - this.constructionTarget.x,
+          this.controls.position.z - this.constructionTarget.z
+        );
+
+        if (pDist > 10.0) {
+          // Moved too far away, cancel construction!
+          this.cancelBuilding();
+        } else {
+          this.constructionTimer += delta;
+          this.hammerSoundTimer += delta;
+
+          if (this.hammerSoundTimer >= 0.55) {
+            soundManager.playHammerStrike();
+            this.colonialWorld.createWoodChips(
+              this.constructionTarget.x,
+              this.constructionTarget.y + 0.5,
+              this.constructionTarget.z,
+              6
+            );
+            this.hammerSoundTimer = 0;
+          }
+
+          // Construction viewmodel hammering cadence
+          const hammerPhase = Math.sin(this.constructionTimer * Math.PI * 4);
+          this.weaponPivot.position.y = -0.35 + hammerPhase * 0.08;
+          this.weaponPivot.position.z = -0.42 - Math.abs(hammerPhase) * 0.06;
+          this.weaponPivot.rotation.x = -0.45 + hammerPhase * 0.35;
+
+          const bp = BUILDING_BLUEPRINTS[this.constructionTarget.type];
+
+          // Check if construction finished!
+          if (this.constructionTimer >= this.constructionDuration) {
+            if (this.controls.inventory.wood >= bp.woodCost) {
+              this.controls.inventory.wood -= bp.woodCost;
+
+              this.colonialWorld.spawnBuilding(
+                this.constructionTarget.type,
+                this.constructionTarget.x,
+                this.constructionTarget.y,
+                this.constructionTarget.z,
+                this.constructionTarget.rot
+              );
+
+              this.colonialWorld.createWoodChips(
+                this.constructionTarget.x,
+                this.constructionTarget.y + 1.2,
+                this.constructionTarget.z,
+                28
+              );
+
+              soundManager.playConstructionComplete();
+            }
+
+            this.isConstructing = false;
+            this.constructionTarget = null;
+          }
+        }
+      }
+    }
+
+    // Sync construction state to controls for PlayerState
+    this.controls.isConstructing = this.isConstructing;
+    if (this.isConstructing && this.constructionTarget) {
+      this.controls.constructionProgress = Math.min(1.0, this.constructionTimer / this.constructionDuration);
+      this.controls.constructionTimeTotal = this.constructionDuration;
+      this.controls.constructionRemaining = Math.max(0, this.constructionDuration - this.constructionTimer);
+      this.controls.constructingBuildingName = BUILDING_BLUEPRINTS[this.constructionTarget.type].name;
+    } else {
+      this.controls.constructionProgress = 0;
+      this.controls.constructionTimeTotal = 0;
+      this.controls.constructionRemaining = 0;
+      this.controls.constructingBuildingName = '';
+    }
+
     // 1776 Frontier Building Holographic Placement Preview
     if (this.controls.isBuildingMode) {
       const selectedType = this.controls.selectedBuilding;
@@ -1201,13 +1285,18 @@ export class GameEngine {
       this.ghostBuildingMesh.position.set(targetX, targetY, targetZ);
       this.ghostBuildingMesh.rotation.y = this.controls.buildingRotation;
 
-      // Lower weapon viewmodel during building preview
-      this.weaponPivot.position.y = -0.55;
+      if (!this.isConstructing) {
+        // Lower weapon viewmodel during building preview
+        this.weaponPivot.position.y = -0.55;
+      }
     } else {
       if (this.ghostBuildingMesh) {
         this.scene.remove(this.ghostBuildingMesh);
         this.ghostBuildingMesh = null;
         this.ghostBuildingType = null;
+      }
+      if (this.isConstructing) {
+        this.cancelBuilding();
       }
     }
 
@@ -1217,6 +1306,21 @@ export class GameEngine {
       this.onStateUpdateCb(playerState);
     }
   };
+
+  public cancelBuilding() {
+    this.isConstructing = false;
+    this.constructionTarget = null;
+    if (this.ghostBuildingMesh) {
+      this.scene.remove(this.ghostBuildingMesh);
+      this.ghostBuildingMesh = null;
+      this.ghostBuildingType = null;
+    }
+    this.controls.isConstructing = false;
+    this.controls.constructionProgress = 0;
+    this.controls.constructionTimeTotal = 0;
+    this.controls.constructionRemaining = 0;
+    this.controls.constructingBuildingName = '';
+  }
 
   public getLandmarks(): Landmark[] {
     return this.colonialWorld.landmarks;

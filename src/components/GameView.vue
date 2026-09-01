@@ -62,14 +62,25 @@ const playerState = ref<PlayerState>({
   isBuildingMode: false,
   selectedBuilding: 'campfire',
   buildingRotation: 0,
-  isCrouching: false
+  isCrouching: false,
+  isConstructing: false,
+  constructionProgress: 0,
+  constructionTimeTotal: 0,
+  constructionRemaining: 0,
+  constructingBuildingName: ''
 });
 
 const onPointerLockChange = () => {
   if (gameEngine) {
     isLocked.value = gameEngine.controls.isLocked;
-    if (!gameEngine.controls.isLocked && !isBackpackOpen.value && !isMapOpen.value && !playerState.value.isDead) {
-      isPaused.value = true;
+    if (!gameEngine.controls.isLocked) {
+      if (gameEngine.controls.isBuildingMode) {
+        gameEngine.controls.isBuildingMode = false;
+        gameEngine.cancelBuilding();
+      }
+      if (!isBackpackOpen.value && !isMapOpen.value && !playerState.value.isDead) {
+        isPaused.value = true;
+      }
     } else if (gameEngine.controls.isLocked) {
       isPaused.value = false;
     }

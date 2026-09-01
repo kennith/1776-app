@@ -67,8 +67,8 @@ export class TerrainGenerator {
     // -------------------------------------------------------------
     // 2. LAKE #1: North Great Lake (Lake Champlain Basin)
     // -------------------------------------------------------------
-    const l1Center = { x: 340, z: -520, rx: 125, rz: 95 };
-    const l1Warp = this.warpNoise2D(x * 0.012, z * 0.012) * 0.22;
+    const l1Center = { x: 340, z: -520, rx: 185, rz: 145 };
+    const l1Warp = this.warpNoise2D(x * 0.009, z * 0.009) * 0.22;
     const l1Dist = Math.hypot((x - l1Center.x) / l1Center.rx, (z - l1Center.z) / l1Center.rz) + l1Warp;
     if (l1Dist < 1.0) {
       if (l1Dist < minT) {
@@ -80,8 +80,8 @@ export class TerrainGenerator {
     // -------------------------------------------------------------
     // 3. LAKE #2: Northwest Alpine Mountain Lake
     // -------------------------------------------------------------
-    const l2Center = { x: -580, z: -520, rx: 105, rz: 105 };
-    const l2Warp = this.warpNoise2D(x * 0.014, z * 0.014) * 0.20;
+    const l2Center = { x: -580, z: -520, rx: 155, rz: 155 };
+    const l2Warp = this.warpNoise2D(x * 0.010, z * 0.010) * 0.20;
     const l2Dist = Math.hypot((x - l2Center.x) / l2Center.rx, (z - l2Center.z) / l2Center.rz) + l2Warp;
     if (l2Dist < 1.0) {
       if (l2Dist < minT) {
@@ -93,8 +93,8 @@ export class TerrainGenerator {
     // -------------------------------------------------------------
     // 4. LAKE #3: Southwest Forest Emerald Lake
     // -------------------------------------------------------------
-    const l3Center = { x: -520, z: 520, rx: 135, rz: 100 };
-    const l3Warp = this.warpNoise2D(x * 0.011, z * 0.011) * 0.24;
+    const l3Center = { x: -520, z: 520, rx: 195, rz: 150 };
+    const l3Warp = this.warpNoise2D(x * 0.008, z * 0.008) * 0.24;
     const l3Dist = Math.hypot((x - l3Center.x) / l3Center.rx, (z - l3Center.z) / l3Center.rz) + l3Warp;
     if (l3Dist < 1.0) {
       if (l3Dist < minT) {
@@ -106,8 +106,8 @@ export class TerrainGenerator {
     // -------------------------------------------------------------
     // 5. LAKE #4: Southeast Highland Mirror Lake
     // -------------------------------------------------------------
-    const l4Center = { x: 550, z: 540, rx: 115, rz: 115 };
-    const l4Warp = this.warpNoise2D(x * 0.013, z * 0.013) * 0.22;
+    const l4Center = { x: 550, z: 540, rx: 165, rz: 165 };
+    const l4Warp = this.warpNoise2D(x * 0.009, z * 0.009) * 0.22;
     const l4Dist = Math.hypot((x - l4Center.x) / l4Center.rx, (z - l4Center.z) / l4Center.rz) + l4Warp;
     if (l4Dist < 1.0) {
       if (l4Dist < minT) {

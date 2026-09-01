@@ -555,6 +555,53 @@ export class SoundManager {
   }
 
   /**
+   * Frontier carpentry hammer nail strike sound
+   */
+  public playHammerStrike() {
+    if (!this.ctx || this.isMuted) return;
+    const now = this.ctx.currentTime;
+
+    // Metallic hammer clang
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1450 + (Math.random() - 0.5) * 160, now);
+    osc.frequency.exponentialRampToValueAtTime(280, now + 0.08);
+    gain.gain.setValueAtTime(0.45, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    osc.connect(gain);
+    if (this.sfxGainNode) gain.connect(this.sfxGainNode);
+    osc.start(now);
+    osc.stop(now + 0.08);
+
+    // Solid wood beam impact thud
+    const osc2 = this.ctx.createOscillator();
+    const gain2 = this.ctx.createGain();
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(220, now);
+    osc2.frequency.exponentialRampToValueAtTime(45, now + 0.14);
+    gain2.gain.setValueAtTime(0.6, now);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+    osc2.connect(gain2);
+    if (this.sfxGainNode) gain2.connect(this.sfxGainNode);
+    osc2.start(now);
+    osc2.stop(now + 0.14);
+  }
+
+  /**
+   * Construction finished fanfare / wood placement thud
+   */
+  public playConstructionComplete() {
+    if (!this.ctx || this.isMuted) return;
+
+    // Double heavy mallet strike
+    this.playHammerStrike();
+    setTimeout(() => {
+      this.playHammerStrike();
+    }, 120);
+  }
+
+  /**
    * Tree falling / breaking sound (timber creak & heavy ground crash)
    */
   public playTreeFell() {

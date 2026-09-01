@@ -224,8 +224,13 @@ const cardinalDirection = computed(() => {
                 <div class="bbp-name">{{ bp.name }}</div>
                 <div class="bbp-desc font-fell">{{ bp.description }}</div>
               </div>
-              <div class="bbp-cost-badge" :class="{ ok: (playerState.inventory?.wood ?? 0) >= bp.woodCost }">
-                🪵 {{ bp.woodCost }} Wood
+              <div class="bbp-badges-row font-cinzel">
+                <span class="bbp-cost-badge" :class="{ ok: (playerState.inventory?.wood ?? 0) >= bp.woodCost }">
+                  🪵 {{ bp.woodCost }} Wood
+                </span>
+                <span class="bbp-time-badge">
+                  ⏱️ {{ bp.buildTime }}s
+                </span>
               </div>
             </div>
           </div>
@@ -408,17 +413,17 @@ const cardinalDirection = computed(() => {
 
       <!-- 1776 Frontier Building & Construction Dock (When in Build Mode) -->
       <transition name="build-dock-slide">
-        <div v-if="playerState.isBuildingMode" class="building-mode-dock parchment-border font-cinzel pointer-events-auto">
+        <div v-if="playerState.isBuildingMode && !isPaused" class="building-mode-dock parchment-border font-cinzel pointer-events-auto">
           <div class="build-dock-header">
             <div class="build-title-row">
               <span class="build-title-badge">🔨 1776 FRONTIER CONSTRUCTION MODE</span>
               <span class="build-wood-inventory">🪵 <strong>{{ playerState.inventory?.wood ?? 0 }}</strong> WOOD TIMBER IN RUCKSACK</span>
             </div>
             <div class="build-help-hints font-fell">
-              <span><strong>[LMB]</strong> Construct Structure</span> • 
+              <span><strong>[LMB]</strong> Begin Construction ({{ BUILDING_BLUEPRINTS[playerState.selectedBuilding]?.buildTime ?? 2.5 }}s)</span> • 
               <span><strong>[R]</strong> Rotate 45°</span> • 
               <span><strong>[1-5 / Scroll]</strong> Select Blueprint</span> • 
-              <button class="exit-build-btn font-cinzel" @click="emit('toggle-building-mode')">✕ [B] EXIT BUILD MODE</button>
+              <button class="exit-build-btn font-cinzel" @click="emit('toggle-building-mode')">✕ [ESC / B] EXIT</button>
             </div>
           </div>
 
@@ -438,20 +443,41 @@ const cardinalDirection = computed(() => {
               <div class="bp-icon">{{ bp.icon }}</div>
               <div class="bp-details">
                 <span class="bp-name font-cinzel">{{ bp.name }}</span>
-                <span
-                  class="bp-cost font-cinzel"
-                  :class="{
-                    'cost-ok': (playerState.inventory?.wood ?? 0) >= bp.woodCost,
-                    'cost-err': (playerState.inventory?.wood ?? 0) < bp.woodCost
-                  }"
-                >
-                  🪵 {{ bp.woodCost }} WOOD
-                </span>
+                <div class="bp-meta-row font-cinzel">
+                  <span
+                    class="bp-cost"
+                    :class="{
+                      'cost-ok': (playerState.inventory?.wood ?? 0) >= bp.woodCost,
+                      'cost-err': (playerState.inventory?.wood ?? 0) < bp.woodCost
+                    }"
+                  >
+                    🪵 {{ bp.woodCost }} Wood
+                  </span>
+                  <span class="bp-time-tag">⏱️ {{ bp.buildTime }}s</span>
+                </div>
                 <span class="bp-desc font-fell">{{ bp.description }}</span>
               </div>
               <div v-if="playerState.selectedBuilding === bp.id" class="bp-active-tag font-cinzel">✓ ACTIVE</div>
             </div>
           </div>
+        </div>
+      </transition>
+
+      <!-- 1776 Frontier Construction Progress Channeling Bar -->
+      <transition name="build-dock-slide">
+        <div v-if="playerState.isConstructing && !isPaused" class="construction-channel-bar parchment-border font-cinzel pointer-events-none">
+          <div class="channel-header">
+            <span class="channel-icon">🔨</span>
+            <span class="channel-title">CONSTRUCTING {{ playerState.constructingBuildingName.toUpperCase() }}</span>
+            <span class="channel-timer font-fell">{{ (playerState.constructionProgress * 100).toFixed(0) }}% ({{ playerState.constructionRemaining.toFixed(1) }}s)</span>
+          </div>
+          <div class="channel-progress-outer">
+            <div
+              class="channel-progress-fill"
+              :style="{ width: `${playerState.constructionProgress * 100}%` }"
+            ></div>
+          </div>
+          <div class="channel-hint font-fell">Carpentry in progress • Stay within 10 paces • [Esc] Cancel</div>
         </div>
       </transition>
 
@@ -2273,6 +2299,111 @@ const cardinalDirection = computed(() => {
 .bbp-cost-badge.ok {
   background: #27ae60;
   color: #fff;
+}
+
+.bbp-badges-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.bbp-time-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: #3b2a1a;
+  color: #f1dfa8;
+}
+
+.bp-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0;
+}
+
+.bp-time-tag {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #8b6508;
+  background: rgba(212, 175, 55, 0.15);
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+}
+
+/* Construction Channeling Bar */
+.construction-channel-bar {
+  position: absolute;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: radial-gradient(circle at center, rgba(30, 20, 10, 0.95) 0%, rgba(15, 10, 5, 0.98) 100%);
+  border: 2px solid var(--color-patriot-gold);
+  border-radius: 8px;
+  padding: 10px 18px;
+  min-width: 380px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.75), 0 0 20px rgba(212, 175, 55, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 100;
+}
+
+.channel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.channel-icon {
+  font-size: 1.2rem;
+  animation: hammerBounce 0.55s infinite ease-in-out;
+}
+
+@keyframes hammerBounce {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-25deg) translateY(-2px); }
+}
+
+.channel-title {
+  font-size: 0.85rem;
+  font-weight: 900;
+  color: #fff2b2;
+  letter-spacing: 1px;
+  flex: 1;
+  text-align: left;
+}
+
+.channel-timer {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #e0cfb0;
+}
+
+.channel-progress-outer {
+  width: 100%;
+  height: 12px;
+  background: rgba(0, 0, 0, 0.65);
+  border-radius: 6px;
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  overflow: hidden;
+}
+
+.channel-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #b8860b 0%, #ffd700 50%, #ffae19 100%);
+  border-radius: 6px;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+  transition: width 0.05s linear;
+}
+
+.channel-hint {
+  font-size: 0.72rem;
+  color: #c4b595;
+  text-align: center;
 }
 
 /* Animations */

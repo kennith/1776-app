@@ -71,6 +71,11 @@ export class FirstPersonControls {
   public buildingRotation: number = 0;
   public buildingList: BuildingId[] = ['campfire', 'palisade', 'bridge', 'cabin', 'watchtower'];
   private onToggleBuildCallback: (() => void) | null = null;
+  public isConstructing: boolean = false;
+  public constructionProgress: number = 0;
+  public constructionTimeTotal: number = 0;
+  public constructionRemaining: number = 0;
+  public constructingBuildingName: string = '';
 
   // Key state map
   private keys: Record<string, boolean> = {};
@@ -270,6 +275,16 @@ export class FirstPersonControls {
       }
     }
 
+    // Press 'Escape' to exit building mode if active
+    if (e.code === 'Escape') {
+      if (this.isBuildingMode) {
+        this.isBuildingMode = false;
+        if (this.onToggleBuildCallback) {
+          this.onToggleBuildCallback();
+        }
+      }
+    }
+
     // Press 'E' to toggle backpack
     if (e.code === 'KeyE') {
       if (this.onToggleBackpackCallback) {
@@ -345,6 +360,9 @@ export class FirstPersonControls {
    * Switching weapon slot preserves the reload timer of all slots
    */
   public switchSlot(slot: 'main' | 'sub' | 'tool') {
+    if (this.isBuildingMode) {
+      this.isBuildingMode = false;
+    }
     if (this.activeSlot === slot) return;
     this.activeSlot = slot;
     soundManager.playClick();
@@ -773,7 +791,12 @@ export class FirstPersonControls {
       isBuildingMode: this.isBuildingMode,
       selectedBuilding: this.selectedBuilding,
       buildingRotation: this.buildingRotation,
-      isCrouching: this.isCrouching
+      isCrouching: this.isCrouching,
+      isConstructing: this.isConstructing,
+      constructionProgress: this.constructionProgress,
+      constructionTimeTotal: this.constructionTimeTotal,
+      constructionRemaining: Math.round(this.constructionRemaining * 10) / 10,
+      constructingBuildingName: this.constructingBuildingName
     };
   }
 
