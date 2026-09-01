@@ -793,22 +793,104 @@ export class GameEngine {
     parent.add(knife);
   }
 
+  /**
+   * Builds an authentic, heavy-duty Frontier Brush Machete oriented vertically UP in combat grip
+   * Features ergonomic curved hardwood handle scales, brass bolster pins, full tang, and broad high-carbon steel blade
+   */
   private buildMacheteModel(parent: THREE.Group) {
     const machete = new THREE.Group();
-    machete.position.set(0.05, -0.12, -0.15);
-    machete.rotation.set(-0.25, 0.15, -0.1);
+    // Upright combat grip stance
+    machete.position.set(0.06, -0.15, -0.22);
+    machete.rotation.set(0.12, -0.06, -0.04);
 
-    const bladeGeom = new THREE.BoxGeometry(0.018, 0.09, 0.6);
-    const bladeMat = new THREE.MeshStandardMaterial({ color: 0xbdc3c7, metalness: 0.9, roughness: 0.25 });
-    const blade = new THREE.Mesh(bladeGeom, bladeMat);
-    blade.position.set(0, 0.08, -0.3);
-    machete.add(blade);
+    const steelMat = new THREE.MeshStandardMaterial({
+      color: 0xc4c9ce,
+      metalness: 0.92,
+      roughness: 0.22
+    });
+    const edgeMat = new THREE.MeshStandardMaterial({
+      color: 0xf0f3f6,
+      metalness: 0.98,
+      roughness: 0.12
+    });
+    const woodMat = new THREE.MeshStandardMaterial({
+      color: 0x3d2314, // Dark walnut / rosewood handle scales
+      roughness: 0.75,
+      metalness: 0.05
+    });
+    const brassMat = new THREE.MeshStandardMaterial({
+      color: 0xd4af37,
+      metalness: 0.85,
+      roughness: 0.3
+    });
 
-    const gripGeom = new THREE.BoxGeometry(0.03, 0.04, 0.16);
-    const gripMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, roughness: 0.9 });
-    const grip = new THREE.Mesh(gripGeom, gripMat);
-    grip.position.set(0, 0.05, -0.02);
-    machete.add(grip);
+    // 1. Full Tang Steel Core along handle (from y = -0.16 to y = 0.0)
+    const tangGeom = new THREE.BoxGeometry(0.012, 0.16, 0.032);
+    const tang = new THREE.Mesh(tangGeom, steelMat);
+    tang.position.set(0, -0.08, 0);
+    machete.add(tang);
+
+    // 2. Ergonomic Hardwood Grip Scales (Sandwiching the tang)
+    const gripLGeom = new THREE.BoxGeometry(0.010, 0.155, 0.034);
+    const gripL = new THREE.Mesh(gripLGeom, woodMat);
+    gripL.position.set(-0.010, -0.08, 0);
+    machete.add(gripL);
+
+    const gripRGeom = new THREE.BoxGeometry(0.010, 0.155, 0.034);
+    const gripR = new THREE.Mesh(gripRGeom, woodMat);
+    gripR.position.set(0.010, -0.08, 0);
+    machete.add(gripR);
+
+    // 3. Brass Rivet Pins through the grip
+    for (const py of [-0.03, -0.08, -0.13]) {
+      const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.034, 6), brassMat);
+      pin.rotation.z = Math.PI / 2;
+      pin.position.set(0, py, 0);
+      machete.add(pin);
+    }
+
+    // 4. Hooked "Bird's Head" Pommel Beak at base (prevents slipping during heavy swings)
+    const pommelBeak = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.022, 0.046), woodMat);
+    pommelBeak.position.set(0, -0.165, 0.006);
+    machete.add(pommelBeak);
+
+    // 5. Brass Bolster / Fore-guard Plate (at y = 0.0)
+    const bolster = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.014, 0.042), brassMat);
+    bolster.position.set(0, 0.005, 0);
+    machete.add(bolster);
+
+    // 6. Upright Carbon-Steel Machete Blade (Rising straight UP along +Y from y = 0.01 to y = 0.52)
+    // Main heavy spine & body
+    const bladeBody = new THREE.Mesh(new THREE.BoxGeometry(0.009, 0.48, 0.052), steelMat);
+    bladeBody.position.set(0, 0.25, -0.006);
+    machete.add(bladeBody);
+
+    // Razor-Sharp Leading Convex Cutting Bevel (Facing forward along -Z)
+    const bladeEdge = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.48, 0.018), edgeMat);
+    bladeEdge.position.set(0, 0.25, -0.036);
+    machete.add(bladeEdge);
+
+    // Weighted Bolo / Bush Machete Tip Expansion (Wider curved cutting swell at top)
+    const tipSwell = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.12, 0.024), steelMat);
+    tipSwell.position.set(0, 0.44, -0.026);
+    machete.add(tipSwell);
+
+    // Curved Top Apex Tip
+    const tipApexGeom = new THREE.ConeGeometry(0.032, 0.09, 4);
+    tipApexGeom.scale(0.26, 1.0, 1.3);
+    const tipApex = new THREE.Mesh(tipApexGeom, edgeMat);
+    tipApex.position.set(0, 0.525, -0.016);
+    machete.add(tipApex);
+
+    // Central Longitudinal Fuller (Weight reduction groove)
+    const fullerMat = new THREE.MeshStandardMaterial({
+      color: 0x636e72,
+      metalness: 0.90,
+      roughness: 0.45
+    });
+    const fuller = new THREE.Mesh(new THREE.BoxGeometry(0.011, 0.36, 0.009), fullerMat);
+    fuller.position.set(0, 0.22, 0.002);
+    machete.add(fuller);
 
     parent.add(machete);
   }
