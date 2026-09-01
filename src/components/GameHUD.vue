@@ -564,7 +564,6 @@ const cardinalDirection = computed(() => {
 
           <!-- Land Crouching Status Badge -->
           <div v-if="playerState.isCrouching" class="crouch-badge parchment-border font-cinzel">
-            <span class="crouch-icon">🧎</span>
             <span class="crouch-text">CROUCHED</span>
           </div>
 
