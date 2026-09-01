@@ -491,9 +491,9 @@ export class GameEngine {
 
   private buildSwordModel(parent: THREE.Group) {
     const sword = new THREE.Group();
-    // Poised commandingly forward and slightly upward in the player's view
-    sword.position.set(0.14, -0.20, -0.22);
-    sword.rotation.set(-0.42, 0.14, -0.06);
+    // Flipped to face upward in an upright high-ready combat stance
+    sword.position.set(0.16, -0.22, -0.32);
+    sword.rotation.set(0.58, -0.28, 0.14);
 
     // ==========================================
     // HIGH-DEFINITION SHADER MATERIALS
