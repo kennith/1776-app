@@ -440,7 +440,7 @@ const cardinalDirection = computed(() => {
               <span class="build-wood-inventory">🪵 <strong>{{ playerState.inventory?.wood ?? 0 }}</strong> WOOD • 🪨 <strong>{{ playerState.inventory?.stone ?? 0 }}</strong> STONE</span>
             </div>
             <div class="build-help-hints font-fell">
-              <span><strong>[LMB]</strong> Begin Construction ({{ BUILDING_BLUEPRINTS[playerState.selectedBuilding]?.buildTime ?? 2.5 }}s)</span> • 
+              <span><strong>[X]</strong> Begin Construction ({{ BUILDING_BLUEPRINTS[playerState.selectedBuilding]?.buildTime ?? 2.5 }}s)</span> • 
               <span><strong>[R]</strong> Rotate 45°</span> • 
               <span><strong>[1-8 / Scroll]</strong> Select Blueprint</span> • 
               <button class="exit-build-btn font-cinzel" @click="emit('toggle-building-mode')">✕ [ESC / B] EXIT</button>

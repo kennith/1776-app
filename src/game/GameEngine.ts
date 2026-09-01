@@ -133,6 +133,9 @@ export class GameEngine {
         this.onToggleBuildCb();
       }
     });
+    this.controls.setOnBuildTrigger(() => {
+      this.triggerWeaponAction();
+    });
 
     // Colonial World & Atmosphere (3x foliage density & solid collision grid)
     this.colonialWorld = new ColonialWorld(this.scene, this.terrain);

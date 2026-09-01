@@ -186,6 +186,7 @@ const onTeleport = (x: number, z: number) => {
 
 const onShoot = () => {
   if (gameEngine) {
+    if (gameEngine.controls.isBuildingMode) return; // Must press [X] to build
     gameEngine.triggerWeaponAction();
   }
 };
@@ -217,6 +218,10 @@ const onCanvasClick = () => {
   if (isBackpackOpen.value || isMapOpen.value) return;
   if (isPaused.value) {
     onRequestLock();
+    return;
+  }
+  // When in build mode, pressing [X] builds it (clicking is disabled for building)
+  if (gameEngine?.controls.isBuildingMode) {
     return;
   }
   if (isLocked.value && gameEngine) {

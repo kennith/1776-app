@@ -161,6 +161,11 @@ export class FirstPersonControls {
   private onSlotChangeCallback: ((slot: 'main' | 'sub' | 'tool') => void) | null = null;
   private onToggleBackpackCallback: (() => void) | null = null;
   private onToggleMapCallback: (() => void) | null = null;
+  private onBuildTriggerCallback: (() => void) | null = null;
+
+  public setOnBuildTrigger(cb: () => void) {
+    this.onBuildTriggerCallback = cb;
+  }
 
   public setOnToggleBuild(cb: () => void) {
     this.onToggleBuildCallback = cb;
@@ -315,6 +320,13 @@ export class FirstPersonControls {
 
     // In Building Mode:
     if (this.isBuildingMode) {
+      // Press 'X' to build the selected structure!
+      if (e.code === 'KeyX') {
+        if (this.onBuildTriggerCallback) {
+          this.onBuildTriggerCallback();
+        }
+      }
+
       // Press 'R' to rotate building 45 degrees
       if (e.code === 'KeyR') {
         this.buildingRotation = (this.buildingRotation + Math.PI / 4) % (Math.PI * 2);
