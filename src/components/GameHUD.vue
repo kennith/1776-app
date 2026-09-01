@@ -451,6 +451,26 @@ watch(activeSlotKey, (newKey, oldKey) => {
             <div class="reload-bar-fill" :style="{ width: `${playerState.reloadProgress * 100}%` }"></div>
           </div>
         </div>
+
+        <!-- Structure Targeted Health Inspection Card -->
+        <div v-if="playerState.targetedBuilding && !playerState.isBuildingMode" class="structure-target-card font-cinzel">
+          <div class="structure-target-header">
+            <span class="structure-target-icon">🏗️</span>
+            <span class="structure-target-name">{{ playerState.targetedBuilding.name }}</span>
+            <span class="structure-target-hp-num">{{ playerState.targetedBuilding.health }} / {{ playerState.targetedBuilding.maxHealth }} HP</span>
+          </div>
+          <div class="structure-target-track">
+            <div
+              class="structure-target-fill"
+              :class="{
+                'hp-high': (playerState.targetedBuilding.health / playerState.targetedBuilding.maxHealth) > 0.5,
+                'hp-mid': (playerState.targetedBuilding.health / playerState.targetedBuilding.maxHealth) <= 0.5 && (playerState.targetedBuilding.health / playerState.targetedBuilding.maxHealth) > 0.25,
+                'hp-low': (playerState.targetedBuilding.health / playerState.targetedBuilding.maxHealth) <= 0.25
+              }"
+              :style="{ width: `${Math.max(0, (playerState.targetedBuilding.health / playerState.targetedBuilding.maxHealth) * 100)}%` }"
+            ></div>
+          </div>
+        </div>
       </div>
 
       <!-- 1776 Frontier Building & Construction Dock (When in Build Mode) -->
@@ -1587,6 +1607,84 @@ watch(activeSlotKey, (newKey, oldKey) => {
   height: 100%;
   background: var(--color-patriot-gold);
   transition: width 0.05s linear;
+}
+
+/* Structure Target Health Inspection Card */
+.structure-target-card {
+  position: absolute;
+  top: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20, 24, 30, 0.92);
+  border: 1.5px solid var(--color-patriot-gold);
+  border-radius: 6px;
+  padding: 6px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 170px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.7), 0 0 10px rgba(212, 175, 55, 0.3);
+  pointer-events: none;
+  animation: structureCardPop 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+@keyframes structureCardPop {
+  0% { opacity: 0; transform: translate(-50%, -6px) scale(0.95); }
+  100% { opacity: 1; transform: translate(-50%, 0) scale(1.0); }
+}
+
+.structure-target-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.structure-target-icon {
+  font-size: 0.85rem;
+}
+
+.structure-target-name {
+  color: #fff;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.structure-target-hp-num {
+  color: var(--color-patriot-gold);
+  font-weight: 800;
+  font-size: 0.70rem;
+}
+
+.structure-target-track {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.structure-target-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.15s ease, background-color 0.2s ease;
+}
+
+.structure-target-fill.hp-high {
+  background: #2ecc71;
+  box-shadow: 0 0 6px #2ecc71;
+}
+
+.structure-target-fill.hp-mid {
+  background: #f39c12;
+  box-shadow: 0 0 6px #f39c12;
+}
+
+.structure-target-fill.hp-low {
+  background: #e74c3c;
+  box-shadow: 0 0 6px #e74c3c;
 }
 
 /* Bottom Center Panel */

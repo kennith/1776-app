@@ -101,6 +101,7 @@ export interface PlayerState {
   constructionRemaining: number; // remaining in seconds
   constructingBuildingName: string;
   isClimbing: boolean;
+  targetedBuilding?: { name: string; health: number; maxHealth: number; type: BuildingId } | null;
 }
 
 export interface Landmark {

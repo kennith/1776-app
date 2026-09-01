@@ -79,6 +79,7 @@ export class FirstPersonControls {
   public constructingBuildingName: string = '';
   public isClimbing: boolean = false;
   private climbStepTimer: number = 0;
+  public targetedBuilding: { name: string; health: number; maxHealth: number; type: BuildingId } | null = null;
 
   // Key state map
   private keys: Record<string, boolean> = {};
@@ -934,7 +935,8 @@ export class FirstPersonControls {
       constructionTimeTotal: this.constructionTimeTotal,
       constructionRemaining: Math.round(this.constructionRemaining * 10) / 10,
       constructingBuildingName: this.constructingBuildingName,
-      isClimbing: this.isClimbing
+      isClimbing: this.isClimbing,
+      targetedBuilding: this.targetedBuilding ? { ...this.targetedBuilding } : null
     };
   }
 

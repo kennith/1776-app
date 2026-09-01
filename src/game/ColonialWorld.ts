@@ -39,6 +39,19 @@ export interface LadderVolume {
   ladderZ: number;
 }
 
+export interface BuildingData {
+  id: string;
+  type: BuildingId;
+  obstacle: WorldObstacle;
+  mesh: THREE.Group;
+  health: number;
+  maxHealth: number;
+  isDestroyed: boolean;
+  healthBarGroup?: THREE.Group;
+  healthFillMesh?: THREE.Mesh;
+  healthBarTimer: number;
+}
+
 export class ColonialWorld {
   public scene: THREE.Scene;
   public terrain: TerrainGenerator;
@@ -56,6 +69,8 @@ export class ColonialWorld {
   public treeMap: Map<string, TreeData> = new Map();
   // Rock Mining System (50 HP per boulder, broken in 5 pickaxe hits of 10 damage)
   public rockMap: Map<string, RockData> = new Map();
+  // Building Health & Destruction System (Campfire: 80 HP, Palisade: 180 HP, Redoubt: 400 HP, Bridge: 200 HP, Cabin: 500 HP, Watchtower: 600 HP)
+  public buildingMap: Map<string, BuildingData> = new Map();
   private woodChips: WoodChip[] = [];
   private woodChipGeom: THREE.BoxGeometry = new THREE.BoxGeometry(0.08, 0.04, 0.15);
   private woodChipMat: THREE.MeshStandardMaterial = new THREE.MeshStandardMaterial({
@@ -443,6 +458,163 @@ export class ColonialWorld {
     }
   }
 
+  /**
+   * Searches for a player-built structure directly in the player's reach and crosshair
+   */
+  public findBuildingInReach(origin: THREE.Vector3, direction: THREE.Vector3, reach: number = 6.0): WorldObstacle | null {
+    const nearby = this.getObstaclesNear(origin.x, origin.z, reach + 5);
+    let bestBuilding: WorldObstacle | null = null;
+    let closestDist = Infinity;
+
+    for (let i = 0; i < nearby.length; i++) {
+      const obs = nearby[i];
+      if (obs.type !== 'building' || obs.isFelled) continue;
+
+      const toBldgX = obs.x - origin.x;
+      const toBldgZ = obs.z - origin.z;
+      const dist = Math.hypot(toBldgX, toBldgZ);
+
+      if (dist > reach + obs.radius) continue;
+
+      // Check if structure is in front of the crosshair
+      const normX = toBldgX / (dist || 1);
+      const normZ = toBldgZ / (dist || 1);
+      const dot = normX * direction.x + normZ * direction.z;
+
+      if (dot > 0.15 && dist < closestDist) {
+        closestDist = dist;
+        bestBuilding = obs;
+      }
+    }
+
+    return bestBuilding;
+  }
+
+  /**
+   * Creates an in-world 3D floating health bar above a constructed building
+   */
+  public createBuildingHealthBar(bData: BuildingData) {
+    if (bData.healthBarGroup) return;
+
+    const group = new THREE.Group();
+    const bp = BUILDING_BLUEPRINTS[bData.type];
+    const barHeight = (bp ? bp.height : 2.5) + 0.6;
+    group.position.set(bData.obstacle.x, bData.obstacle.y + barHeight, bData.obstacle.z);
+
+    // Frame/Backplate
+    const bgGeom = new THREE.BoxGeometry(1.6, 0.18, 0.04);
+    const bgMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+    const bg = new THREE.Mesh(bgGeom, bgMat);
+    group.add(bg);
+
+    // Border ring/edge
+    const borderGeom = new THREE.BoxGeometry(1.64, 0.22, 0.02);
+    const borderMat = new THREE.MeshBasicMaterial({ color: 0xd4af37 });
+    const border = new THREE.Mesh(borderGeom, borderMat);
+    border.position.set(0, 0, -0.01);
+    group.add(border);
+
+    // Health Fill Bar (scaled from left)
+    const fillGeom = new THREE.BoxGeometry(1.5, 0.12, 0.06);
+    fillGeom.translate(0.75, 0, 0); // Origin at left edge
+    const fillMat = new THREE.MeshBasicMaterial({ color: 0x2ecc71 });
+    const fill = new THREE.Mesh(fillGeom, fillMat);
+    fill.position.set(-0.75, 0, 0.01);
+    group.add(fill);
+
+    this.scene.add(group);
+    bData.healthBarGroup = group;
+    bData.healthFillMesh = fill;
+  }
+
+  /**
+   * Damages a constructed building and collapses it when health reaches 0
+   */
+  public hitBuilding(buildingId: string, damage: number = 25, _hitDir?: THREE.Vector3): { hit: boolean; destroyed: boolean; remainingHp: number } {
+    const bData = this.buildingMap.get(buildingId);
+    if (!bData || bData.isDestroyed) {
+      return { hit: false, destroyed: false, remainingHp: 0 };
+    }
+
+    const currentHp = bData.health;
+    const newHp = Math.max(0, currentHp - damage);
+    bData.health = newHp;
+    bData.obstacle.health = newHp;
+    bData.healthBarTimer = 4.0; // Show floating health bar for 4 seconds
+
+    // Ensure 3D health bar is initialized and visible
+    if (!bData.healthBarGroup) {
+      this.createBuildingHealthBar(bData);
+    }
+
+    if (bData.healthFillMesh) {
+      const pct = Math.max(0.001, newHp / bData.maxHealth);
+      bData.healthFillMesh.scale.x = pct;
+
+      // Color coding: Green > Orange/Yellow > Red
+      const mat = bData.healthFillMesh.material as THREE.MeshBasicMaterial;
+      if (pct > 0.5) {
+        mat.color.setHex(0x2ecc71);
+      } else if (pct > 0.25) {
+        mat.color.setHex(0xf39c12);
+      } else {
+        mat.color.setHex(0xe74c3c);
+      }
+
+      if (bData.healthBarGroup) {
+        bData.healthBarGroup.visible = true;
+      }
+    }
+
+    // Spawn impact particles
+    const isStone = bData.type === 'stone_wall' || bData.type === 'campfire';
+    if (isStone) {
+      this.createStoneChips(bData.obstacle.x, bData.obstacle.y + 0.8, bData.obstacle.z, 16);
+      soundManager.playToolAction('pickaxe');
+    } else {
+      this.createWoodChips(bData.obstacle.x, bData.obstacle.y + 0.8, bData.obstacle.z, 16);
+      soundManager.playToolAction('axe');
+    }
+
+    // Impact structural vibration shake
+    bData.mesh.position.x += (Math.random() - 0.5) * 0.06;
+    bData.mesh.position.z += (Math.random() - 0.5) * 0.06;
+
+    if (newHp <= 0) {
+      // Building is DESTROYED!
+      bData.isDestroyed = true;
+      bData.obstacle.isFelled = true;
+      bData.mesh.visible = false;
+      if (bData.healthBarGroup) {
+        bData.healthBarGroup.visible = false;
+      }
+
+      // Remove physical collision from spatial grid
+      this.removeObstacle(bData.obstacle);
+
+      // If watchtower, remove climbable ladder volume
+      if (bData.type === 'watchtower') {
+        const ladIdx = this.ladders.findIndex(l => Math.hypot(l.x - bData.obstacle.x, l.z - bData.obstacle.z) < 2.5);
+        if (ladIdx !== -1) {
+          this.ladders.splice(ladIdx, 1);
+        }
+      }
+
+      // Massive collapse particle burst (debris & dust)
+      if (isStone) {
+        this.createStoneChips(bData.obstacle.x, bData.obstacle.y + 1.2, bData.obstacle.z, 48);
+      } else {
+        this.createWoodChips(bData.obstacle.x, bData.obstacle.y + 1.2, bData.obstacle.z, 48);
+      }
+
+      soundManager.playExplosion();
+
+      return { hit: true, destroyed: true, remainingHp: 0 };
+    }
+
+    return { hit: true, destroyed: false, remainingHp: newHp };
+  }
+
   private setupLighting() {
     const hemiLight = new THREE.HemisphereLight(0xb8d5e5, 0x3a532e, 0.75);
     hemiLight.position.set(0, 300, 0);
@@ -697,9 +869,9 @@ export class ColonialWorld {
   }
 
   /**
-   * Updates world animations per frame (Cloth flags, clouds, wood chips & tree felling physics)
+   * Updates world animations per frame (Cloth flags, clouds, wood chips & tree felling physics, building health bars)
    */
-  public update(elapsedTime: number, delta: number) {
+  public update(elapsedTime: number, delta: number, camera?: THREE.Camera) {
     // 1. Realistic Cloth Simulation for 1777 Betsy Ross Flags
     const windSpeed = 3.5;
     const waveFreq = 2.0;
@@ -730,7 +902,22 @@ export class ColonialWorld {
       }
     }
 
-    // 3. Tree Felling Animations & 20-Second Despawn System
+    // 3. Building Floating Health Bars Billboarding & Timers
+    this.buildingMap.forEach((bData) => {
+      if (bData.healthBarGroup && bData.healthBarGroup.visible) {
+        if (camera) {
+          bData.healthBarGroup.quaternion.copy(camera.quaternion);
+        }
+        if (bData.healthBarTimer > 0) {
+          bData.healthBarTimer -= delta;
+          if (bData.healthBarTimer <= 0) {
+            bData.healthBarGroup.visible = false;
+          }
+        }
+      }
+    });
+
+    // 4. Tree Felling Animations & 20-Second Despawn System
     const treesToRemove: string[] = [];
     this.treeMap.forEach((treeData, treeId) => {
       if (treeData.obstacle.isFelled) {
@@ -759,18 +946,22 @@ export class ColonialWorld {
           }
 
           if (treeData.despawnTimer <= 0) {
-            this.scene.remove(treeData.mesh);
             treesToRemove.push(treeId);
           }
         }
       }
     });
 
-    for (let i = 0; i < treesToRemove.length; i++) {
-      this.treeMap.delete(treesToRemove[i]);
+    // Clean up completely despawned trees
+    for (const id of treesToRemove) {
+      const td = this.treeMap.get(id);
+      if (td) {
+        this.scene.remove(td.mesh);
+        this.treeMap.delete(id);
+      }
     }
 
-    // 4. Physical Wood Chip Particle Physics
+    // 5. Wood & Stone Chip Particle System
     for (let i = this.woodChips.length - 1; i >= 0; i--) {
       const chip = this.woodChips[i];
       chip.life += delta;
@@ -1108,6 +1299,7 @@ export class ColonialWorld {
     this.scene.add(mesh);
 
     const bp = BUILDING_BLUEPRINTS[type];
+    const buildingId = `building_${type}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     const obs: WorldObstacle = {
       x,
       y,
@@ -1115,10 +1307,26 @@ export class ColonialWorld {
       radius: Math.max(bp.width, bp.depth) / 2,
       height: bp.height,
       type: 'building',
-      id: `building_${type}_${Date.now()}`
+      id: buildingId,
+      health: bp.health,
+      maxHealth: bp.health,
+      isFelled: false
     };
 
     this.addObstacle(obs);
+
+    // Register Building Health Data in buildingMap
+    const bData: BuildingData = {
+      id: buildingId,
+      type,
+      obstacle: obs,
+      mesh,
+      health: bp.health,
+      maxHealth: bp.health,
+      isDestroyed: false,
+      healthBarTimer: 0
+    };
+    this.buildingMap.set(buildingId, bData);
 
     // Register climbable ladder volume for watchtowers
     if (type === 'watchtower') {

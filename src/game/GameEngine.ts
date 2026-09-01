@@ -1547,14 +1547,14 @@ export class GameEngine {
       }
     }
 
-    // 2. Felling / damaging trees in blast radius
+    // 2. Felling / damaging trees, rocks, and buildings in blast radius
     if (this.colonialWorld) {
       const nearbyObs = this.colonialWorld.getObstaclesNear(pos.x, pos.z, splashRadius);
       for (const obs of nearbyObs) {
+        const d = Math.hypot(obs.x - pos.x, obs.z - pos.z);
+        const dmg = d <= directRadius ? 150 : 75;
+        const blastDir = new THREE.Vector3(obs.x - pos.x, 0.25, obs.z - pos.z).normalize();
         if (obs.type === 'tree' && obs.id) {
-          const d = Math.hypot(obs.x - pos.x, obs.z - pos.z);
-          const dmg = d <= directRadius ? 100 : 50;
-          const blastDir = new THREE.Vector3(obs.x - pos.x, 0.25, obs.z - pos.z).normalize();
           const res = this.colonialWorld.hitTree(obs.id, dmg, blastDir);
           if (res.felled && res.woodYield > 0) {
             this.controls.addWood(res.woodYield);
@@ -1562,6 +1562,16 @@ export class GameEngine {
               this.onHarvestWoodCb(res.woodYield);
             }
           }
+        } else if (obs.type === 'rock' && obs.id) {
+          const res = this.colonialWorld.hitRock(obs.id, dmg, blastDir);
+          if (res.broken && res.stoneYield && res.stoneYield > 0) {
+            this.controls.addStone(res.stoneYield);
+            if (this.onHarvestStoneCb) {
+              this.onHarvestStoneCb(res.stoneYield);
+            }
+          }
+        } else if (obs.type === 'building' && obs.id) {
+          this.colonialWorld.hitBuilding(obs.id, dmg, blastDir);
         }
       }
     }
@@ -1623,6 +1633,12 @@ export class GameEngine {
       if (mainId === 'sword') {
         this.isSwinging = true;
         soundManager.playSwordSlash();
+        const forwardDir = new THREE.Vector3();
+        this.camera.getWorldDirection(forwardDir);
+        const targetBldg = this.colonialWorld.findBuildingInReach(this.controls.position, forwardDir, 4.8);
+        if (targetBldg && targetBldg.id) {
+          this.colonialWorld.hitBuilding(targetBldg.id, 45, forwardDir);
+        }
       } else if (mainId === 'kentucky') {
         this.isSwinging = false;
         soundManager.playRifleCrack();
@@ -1646,6 +1662,12 @@ export class GameEngine {
       if (subId === 'knife' || subId === 'machete') {
         this.isSwinging = true;
         soundManager.playSwordSlash();
+        const forwardDir = new THREE.Vector3();
+        this.camera.getWorldDirection(forwardDir);
+        const targetBldg = this.colonialWorld.findBuildingInReach(this.controls.position, forwardDir, 4.5);
+        if (targetBldg && targetBldg.id) {
+          this.colonialWorld.hitBuilding(targetBldg.id, subId === 'machete' ? 35 : 22, forwardDir);
+        }
       } else if (subId === 'grenade') {
         this.isSwinging = true;
         this.throwGrenade();
@@ -1661,10 +1683,16 @@ export class GameEngine {
       const toolId = this.getActiveToolId();
       this.isSwinging = true;
 
-      if (toolId === 'axe') {
+      const forwardDir = new THREE.Vector3();
+      this.camera.getWorldDirection(forwardDir);
+      const targetBldg = this.colonialWorld.findBuildingInReach(this.controls.position, forwardDir, 4.8);
+
+      if (targetBldg && targetBldg.id) {
+        // Direct tool strike against building
+        const dmg = toolId === 'axe' ? 45 : toolId === 'pickaxe' ? 45 : 20;
+        this.colonialWorld.hitBuilding(targetBldg.id, dmg, forwardDir);
+      } else if (toolId === 'axe') {
         // Find tree in reach and chop for 15 damage (3 shots = 45 HP)
-        const forwardDir = new THREE.Vector3();
-        this.camera.getWorldDirection(forwardDir);
         const targetTree = this.colonialWorld.findTreeInReach(this.controls.position, forwardDir, 4.8);
 
         if (targetTree && targetTree.id) {
@@ -1686,16 +1714,12 @@ export class GameEngine {
         this.shovelSwings++;
         if (this.shovelSwings % 4 === 0) {
           // Dig 3 feet of dirt (3.0 ft) into the earth at the player's front location
-          const forwardDir = new THREE.Vector3();
-          this.camera.getWorldDirection(forwardDir);
           const digX = this.controls.position.x + forwardDir.x * 1.5;
           const digZ = this.controls.position.z + forwardDir.z * 1.5;
           this.terrain.digAt(digX, digZ, 3.0);
           this.colonialWorld.createWoodChips(digX, this.controls.position.y - 1.2, digZ, 18);
         }
       } else if (toolId === 'pickaxe') {
-        const forwardDir = new THREE.Vector3();
-        this.camera.getWorldDirection(forwardDir);
         const targetRock = this.colonialWorld.findRockInReach(this.controls.position, forwardDir, 4.8);
 
         if (targetRock && targetRock.id) {
@@ -1814,7 +1838,27 @@ export class GameEngine {
     if (this.waterMesh) {
       this.waterMesh.position.y = 10.0 + Math.sin(elapsedTime * 1.4) * 0.12;
     }
-    this.colonialWorld.update(elapsedTime, delta);
+    this.colonialWorld.update(elapsedTime, delta, this.camera);
+
+    // Update targeted building for HUD crosshair inspection
+    const forwardDir = new THREE.Vector3();
+    this.camera.getWorldDirection(forwardDir);
+    const targetedBldgObs = this.colonialWorld.findBuildingInReach(this.controls.position, forwardDir, 6.5);
+    if (targetedBldgObs && targetedBldgObs.id) {
+      const bData = this.colonialWorld.buildingMap.get(targetedBldgObs.id);
+      if (bData && !bData.isDestroyed) {
+        this.controls.targetedBuilding = {
+          name: BUILDING_BLUEPRINTS[bData.type]?.name || 'Structure',
+          health: bData.health,
+          maxHealth: bData.maxHealth,
+          type: bData.type
+        };
+      } else {
+        this.controls.targetedBuilding = null;
+      }
+    } else {
+      this.controls.targetedBuilding = null;
+    }
 
     // Active Bullet Projectiles & Visible Fire Tracers Simulation
     for (let i = this.activeBullets.length - 1; i >= 0; i--) {
@@ -1852,7 +1896,7 @@ export class GameEngine {
           this.colonialWorld.createStoneChips(curPos.x, terrainY + 0.1, curPos.z, 10);
         }
       }
-      // 3. Tree / Rock / Obstacle impact
+      // 3. Tree / Rock / Building Obstacle impact
       else if (this.colonialWorld) {
         const nearbyObs = this.colonialWorld.getObstaclesNear(curPos.x, curPos.z, 2.5);
         for (const obs of nearbyObs) {
@@ -1863,6 +1907,8 @@ export class GameEngine {
               this.colonialWorld.hitTree(obs.id || '', b.damage, dir);
             } else if (obs.type === 'rock') {
               this.colonialWorld.hitRock(obs.id || '', b.damage, dir);
+            } else if (obs.type === 'building') {
+              this.colonialWorld.hitBuilding(obs.id || '', b.damage, dir);
             } else {
               this.colonialWorld.createWoodChips(curPos.x, curPos.y, curPos.z, 12);
             }
