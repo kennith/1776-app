@@ -1505,7 +1505,12 @@ export class GameEngine {
     // Dynamic Viewmodel Animations: Chopping Swing, Gun Recoil, or Reload
     this.attackProgress = THREE.MathUtils.lerp(this.attackProgress, 0, delta * 12);
 
-    if (this.controls.isSlotReloading()) {
+    if (this.controls.isSwimming) {
+      // Swimming water treading & 180-degree viewmodel posture
+      const swimBob = Math.sin(elapsedTime * 3.5) * 0.04;
+      this.weaponPivot.position.set(0.24, -0.36 + swimBob, -0.42);
+      this.weaponPivot.rotation.set(Math.PI, 0, 0);
+    } else if (this.controls.isSlotReloading()) {
       // Reloading motion (lowering barrel/weapon slightly and ramming/cocking motion)
       const rPhase = Math.sin(playerState.reloadProgress * Math.PI * 3);
       this.weaponPivot.position.y = -0.32 + rPhase * 0.04;

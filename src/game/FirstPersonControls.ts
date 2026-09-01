@@ -94,6 +94,7 @@ export class FirstPersonControls {
   public maxBreath: number = 5.0;
   private wasUnderwater: boolean = false;
   private swimSplashTimer: number = 0;
+  private swimRoll: number = 0; // 180-degree rotation when swimming
 
   // Death & Respawn System
   public isDead: boolean = false;
@@ -859,13 +860,17 @@ export class FirstPersonControls {
       this.isGrounded = false;
     }
 
-    // Camera Transform Positioning (Pure First-Person Perspective)
+    // 180 Degree Swimming Rotation
+    const targetRoll = this.isSwimming ? Math.PI : 0;
+    this.swimRoll = THREE.MathUtils.lerp(this.swimRoll, targetRoll, Math.min(1.0, dt * 8));
+
+    // Camera Transform Positioning (First-Person Perspective with 180° Swimming Angle)
     this.camera.position.set(
       this.position.x,
       this.position.y + this.headBobOffset,
       this.position.z
     );
-    this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+    this.camera.rotation.set(this.pitch, this.yaw, this.swimRoll, 'YXZ');
 
     let headingDegrees = THREE.MathUtils.radToDeg(-this.yaw) % 360;
     if (headingDegrees < 0) headingDegrees += 360;
