@@ -40,127 +40,84 @@ export class TerrainGenerator {
   }
 
   /**
-   * Evaluates the river carving profile at (x, z).
-   * Generates exactly 1 long East-to-West river across the entire map,
-   * and 4 distinct secondary rivers across the quadrants.
+   * Evaluates the water body profile at (x, z).
+   * Carves 1 thick East-to-West main river (130m wide)
+   * and 4 distinct natural lakes in the quadrants.
    */
-  private getRiverProfile(x: number, z: number): { isRiver: boolean; bedHeight: number; factor: number } {
+  private getWaterBodiesProfile(x: number, z: number): { isWaterBody: boolean; bedHeight: number; factor: number } {
     let minT = 1.0;
-    let targetBed = 2.5;
-
-    // Helper: Distance to 2D line segment
-    const distToSeg = (px: number, pz: number, ax: number, az: number, bx: number, bz: number) => {
-      const dx = bx - ax;
-      const dz = bz - az;
-      const l2 = dx * dx + dz * dz;
-      if (l2 === 0) return Math.hypot(px - ax, pz - az);
-      let t = ((px - ax) * dx + (pz - az) * dz) / l2;
-      t = Math.max(0, Math.min(1, t));
-      return Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
-    };
+    let targetBed = 2.0;
 
     // -------------------------------------------------------------
-    // 1. Long Main River (East to West across the entire 2000m map)
+    // 1. THICK MAIN RIVER (East to West across the entire 2000m map)
     // -------------------------------------------------------------
-    const mainRiverZ = -75 + Math.sin(x * 0.004) * 80 + Math.cos(x * 0.011) * 35 + this.warpNoise2D(x * 0.002, 12.0) * 45;
+    // Grand 130-meter wide colonial river winding across the continent
+    const mainRiverZ = -105 + Math.sin(x * 0.0035) * 95 + Math.cos(x * 0.009) * 45 + this.warpNoise2D(x * 0.002, 12.0) * 55;
     const distMain = Math.abs(z - mainRiverZ);
-    const mainHalfWidth = 24.0; // 48 meters wide
+    const mainHalfWidth = 65.0; // 130 meters wide!
 
     if (distMain < mainHalfWidth) {
       const t = distMain / mainHalfWidth;
       if (t < minT) {
         minT = t;
-        targetBed = 2.0; // 8 meters deep water below waterLevel 10.0
+        targetBed = 1.5; // 8.5 meters deep water below waterLevel 10.0
       }
     }
 
     // -------------------------------------------------------------
-    // 2. River #1: North Tributary River
+    // 2. LAKE #1: North Great Lake (Lake Champlain Basin)
     // -------------------------------------------------------------
-    const northRiverX = 260 + Math.sin(z * 0.007) * 75 + this.warpNoise2D(z * 0.003, 44.0) * 35;
-    if (z >= -850 && z <= -60) {
-      const distN = Math.abs(x - northRiverX);
-      const nHalfWidth = 18.0;
-      if (distN < nHalfWidth) {
-        const t = distN / nHalfWidth;
-        if (t < minT) {
-          minT = t;
-          targetBed = 3.0;
-        }
+    const l1Center = { x: 340, z: -520, rx: 125, rz: 95 };
+    const l1Warp = this.warpNoise2D(x * 0.012, z * 0.012) * 0.22;
+    const l1Dist = Math.hypot((x - l1Center.x) / l1Center.rx, (z - l1Center.z) / l1Center.rz) + l1Warp;
+    if (l1Dist < 1.0) {
+      if (l1Dist < minT) {
+        minT = l1Dist;
+        targetBed = 1.8;
       }
     }
 
     // -------------------------------------------------------------
-    // 3. River #2: Northwest Mountain Gorge River
+    // 3. LAKE #2: Northwest Alpine Mountain Lake
     // -------------------------------------------------------------
-    const nwPts = [
-      { x: -820, z: -750 },
-      { x: -640, z: -530 },
-      { x: -470, z: -320 },
-      { x: -330, z: -110 }
-    ];
-    for (let i = 0; i < nwPts.length - 1; i++) {
-      const p1 = nwPts[i];
-      const p2 = nwPts[i + 1];
-      const d = distToSeg(x, z, p1.x, p1.z, p2.x, p2.z);
-      const nwHalfWidth = 17.0;
-      if (d < nwHalfWidth) {
-        const t = d / nwHalfWidth;
-        if (t < minT) {
-          minT = t;
-          targetBed = 3.2;
-        }
+    const l2Center = { x: -580, z: -520, rx: 105, rz: 105 };
+    const l2Warp = this.warpNoise2D(x * 0.014, z * 0.014) * 0.20;
+    const l2Dist = Math.hypot((x - l2Center.x) / l2Center.rx, (z - l2Center.z) / l2Center.rz) + l2Warp;
+    if (l2Dist < 1.0) {
+      if (l2Dist < minT) {
+        minT = l2Dist;
+        targetBed = 2.0;
       }
     }
 
     // -------------------------------------------------------------
-    // 4. River #3: Southwest Serpentine River
+    // 4. LAKE #3: Southwest Forest Emerald Lake
     // -------------------------------------------------------------
-    const swPts = [
-      { x: -850, z: 200 },
-      { x: -680, z: 380 },
-      { x: -520, z: 580 },
-      { x: -380, z: 780 }
-    ];
-    for (let i = 0; i < swPts.length - 1; i++) {
-      const p1 = swPts[i];
-      const p2 = swPts[i + 1];
-      const d = distToSeg(x, z, p1.x, p1.z, p2.x, p2.z);
-      const swHalfWidth = 17.0;
-      if (d < swHalfWidth) {
-        const t = d / swHalfWidth;
-        if (t < minT) {
-          minT = t;
-          targetBed = 2.8;
-        }
+    const l3Center = { x: -520, z: 520, rx: 135, rz: 100 };
+    const l3Warp = this.warpNoise2D(x * 0.011, z * 0.011) * 0.24;
+    const l3Dist = Math.hypot((x - l3Center.x) / l3Center.rx, (z - l3Center.z) / l3Center.rz) + l3Warp;
+    if (l3Dist < 1.0) {
+      if (l3Dist < minT) {
+        minT = l3Dist;
+        targetBed = 1.6;
       }
     }
 
     // -------------------------------------------------------------
-    // 5. River #4: Southeast Highland River
+    // 5. LAKE #4: Southeast Highland Mirror Lake
     // -------------------------------------------------------------
-    const sePts = [
-      { x: 800, z: 750 },
-      { x: 620, z: 540 },
-      { x: 410, z: 360 },
-      { x: 220, z: 180 }
-    ];
-    for (let i = 0; i < sePts.length - 1; i++) {
-      const p1 = sePts[i];
-      const p2 = sePts[i + 1];
-      const d = distToSeg(x, z, p1.x, p1.z, p2.x, p2.z);
-      const seHalfWidth = 17.0;
-      if (d < seHalfWidth) {
-        const t = d / seHalfWidth;
-        if (t < minT) {
-          minT = t;
-          targetBed = 3.0;
-        }
+    const l4Center = { x: 550, z: 540, rx: 115, rz: 115 };
+    const l4Warp = this.warpNoise2D(x * 0.013, z * 0.013) * 0.22;
+    const l4Dist = Math.hypot((x - l4Center.x) / l4Center.rx, (z - l4Center.z) / l4Center.rz) + l4Warp;
+    if (l4Dist < 1.0) {
+      if (l4Dist < minT) {
+        minT = l4Dist;
+        targetBed = 1.8;
       }
     }
 
     return {
-      isRiver: minT < 1.0,
+      isWaterBody: minT < 1.0,
       bedHeight: targetBed,
       factor: minT
     };
@@ -169,7 +126,7 @@ export class TerrainGenerator {
   /**
    * Calculates the exact terrain height at coordinate (x, z)
    * Guaranteed to maintain solid dry land across the continent,
-   * carving exactly 1 long East-to-West river and 4 distinct secondary rivers,
+   * carving 1 thick East-to-West river and 4 distinct regional lakes,
    * and tapering down into an endless sea at the borders.
    */
   public getHeightAt(x: number, z: number): number {
@@ -209,11 +166,11 @@ export class TerrainGenerator {
       height = THREE.MathUtils.lerp(this.config.baselineY, this.config.maxMountainY, smoothMountainT);
     }
 
-    // Carve exactly the 1 East-to-West Long River + 4 Secondary Rivers
-    const river = this.getRiverProfile(x, z);
-    if (river.isRiver) {
-      const smoothBank = river.factor * river.factor * (3 - 2 * river.factor);
-      height = THREE.MathUtils.lerp(river.bedHeight, height, smoothBank);
+    // Carve the thick East-to-West Middle River + 4 Regional Lakes
+    const water = this.getWaterBodiesProfile(x, z);
+    if (water.isWaterBody) {
+      const smoothBank = water.factor * water.factor * (3 - 2 * water.factor);
+      height = THREE.MathUtils.lerp(water.bedHeight, height, smoothBank);
     }
 
     // Keep initial spawn region near (0,0) gently contoured around baseline y=20
