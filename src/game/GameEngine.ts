@@ -13,6 +13,15 @@ interface ActiveGrenade {
   fuseTimer: number;
 }
 
+interface ActiveBullet {
+  mesh: THREE.Group;
+  light: THREE.PointLight;
+  velocity: THREE.Vector3;
+  age: number;
+  maxAge: number;
+  damage: number;
+}
+
 interface ActiveExplosion {
   group: THREE.Group;
   sphere: THREE.Mesh;
@@ -42,7 +51,8 @@ export class GameEngine {
   private isSwinging: boolean = false;
   private shovelSwings: number = 0;
 
-  // Active Throwable Grenades & Explosion FX
+  // Active Bullets, Tracers, Throwable Grenades & Explosion FX
+  private activeBullets: ActiveBullet[] = [];
   private activeGrenades: ActiveGrenade[] = [];
   private activeExplosions: ActiveExplosion[] = [];
 
@@ -1217,6 +1227,94 @@ export class GameEngine {
   }
 
   /**
+   * Fires a high-visibility fiery black powder lead ball bullet with glowing flame tracer and smoke trail
+   */
+  private fireBullet(speed: number = 160, damage: number = 75, spreadAngle: number = 0.008, pelletCount: number = 1) {
+    const forwardDir = new THREE.Vector3();
+    this.camera.getWorldDirection(forwardDir);
+
+    // Muzzle position slightly forward and below eye line
+    const muzzleOffset = forwardDir.clone().multiplyScalar(0.75).add(new THREE.Vector3(0, -0.09, 0));
+    const startPos = this.camera.position.clone().add(muzzleOffset);
+
+    this.triggerMuzzleFlash();
+
+    // Muzzle smoke & sparks burst
+    if (this.colonialWorld) {
+      this.colonialWorld.createStoneChips(
+        startPos.x + forwardDir.x * 0.4,
+        startPos.y + forwardDir.y * 0.4,
+        startPos.z + forwardDir.z * 0.4,
+        10
+      );
+    }
+
+    for (let p = 0; p < pelletCount; p++) {
+      const bulletGroup = new THREE.Group();
+      bulletGroup.position.copy(startPos);
+
+      // 1. Incandescent Glowing Lead Ball (Molten yellow-orange fire core)
+      const ballRadius = pelletCount > 1 ? 0.045 : 0.075;
+      const ballGeom = new THREE.SphereGeometry(ballRadius, 10, 10);
+      const ballMat = new THREE.MeshBasicMaterial({
+        color: 0xffe600 // Blazing incandescent gold-yellow
+      });
+      const ball = new THREE.Mesh(ballGeom, ballMat);
+      bulletGroup.add(ball);
+
+      // 2. Fiery Bullet Fire & Smoke Tracer Tail (Visible stream of fire trailing the projectile)
+      const tailLength = pelletCount > 1 ? 0.85 : 1.45;
+      const tailGeom = new THREE.CylinderGeometry(0.012, 0.065, tailLength, 6);
+      tailGeom.rotateX(Math.PI / 2);
+      tailGeom.translate(0, 0, tailLength / 2);
+      const tailMat = new THREE.MeshBasicMaterial({
+        color: 0xff5500,
+        transparent: true,
+        opacity: 0.90
+      });
+      const tail = new THREE.Mesh(tailGeom, tailMat);
+      bulletGroup.add(tail);
+
+      // Outer orange fire aura
+      const auraGeom = new THREE.SphereGeometry(ballRadius * 1.6, 8, 8);
+      const auraMat = new THREE.MeshBasicMaterial({
+        color: 0xff3300,
+        transparent: true,
+        opacity: 0.65
+      });
+      const aura = new THREE.Mesh(auraGeom, auraMat);
+      bulletGroup.add(aura);
+
+      // 3. Dynamic Flying Bullet Fire Light
+      const bulletLight = new THREE.PointLight(0xff8800, 3.5, 12.0);
+      bulletGroup.add(bulletLight);
+
+      // Apply directional spread
+      const dir = forwardDir.clone();
+      if (spreadAngle > 0) {
+        dir.x += (Math.random() - 0.5) * spreadAngle * 2;
+        dir.y += (Math.random() - 0.5) * spreadAngle * 2;
+        dir.z += (Math.random() - 0.5) * spreadAngle * 2;
+        dir.normalize();
+      }
+
+      bulletGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), dir);
+
+      const velocity = dir.clone().multiplyScalar(speed);
+
+      this.scene.add(bulletGroup);
+      this.activeBullets.push({
+        mesh: bulletGroup,
+        light: bulletLight,
+        velocity,
+        age: 0,
+        maxAge: 3.5,
+        damage
+      });
+    }
+  }
+
+  /**
    * Spawns a physical 3D black powder grenade with ballistic toss arc & burning fuse
    */
   /**
@@ -1450,17 +1548,17 @@ export class GameEngine {
       } else if (mainId === 'kentucky') {
         this.isSwinging = false;
         soundManager.playRifleCrack();
-        this.triggerMuzzleFlash();
+        this.fireBullet(220, mainInfo.damage, 0.002, 1);
         this.controls.startReload(mainInfo.reloadTime);
       } else if (mainId === 'brown_bess') {
         this.isSwinging = false;
         soundManager.playMusketFire();
-        this.triggerMuzzleFlash();
+        this.fireBullet(145, mainInfo.damage, 0.015, 1);
         this.controls.startReload(mainInfo.reloadTime);
       } else {
         this.isSwinging = false;
         soundManager.playMusketFire();
-        this.triggerMuzzleFlash();
+        this.fireBullet(160, mainInfo.damage, 0.008, 1);
         this.controls.startReload(mainInfo.reloadTime);
       }
     } else if (slot === 'sub') {
@@ -1478,7 +1576,7 @@ export class GameEngine {
       } else {
         this.isSwinging = false;
         soundManager.playPistolShot();
-        this.triggerMuzzleFlash();
+        this.fireBullet(135, subInfo.damage, 0.022, 1);
         this.controls.startReload(subInfo.reloadTime);
       }
     } else {
@@ -1639,6 +1737,67 @@ export class GameEngine {
       this.waterMesh.position.y = 10.0 + Math.sin(elapsedTime * 1.4) * 0.12;
     }
     this.colonialWorld.update(elapsedTime, delta);
+
+    // Active Bullet Projectiles & Visible Fire Tracers Simulation
+    for (let i = this.activeBullets.length - 1; i >= 0; i--) {
+      const b = this.activeBullets[i];
+      b.age += delta;
+
+      const prevPos = b.mesh.position.clone();
+      // Realistic ballistic gravity drop
+      b.velocity.y -= 3.8 * delta;
+      b.mesh.position.addScaledVector(b.velocity, delta);
+      const curPos = b.mesh.position.clone();
+
+      // Orient fire tracer tail along velocity vector
+      const dir = b.velocity.clone().normalize();
+      b.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), dir);
+
+      // Check collision with terrain & water
+      const terrainY = this.terrain.getHeightAt(curPos.x, curPos.z);
+      const waterY = 10.0;
+
+      let hit = false;
+
+      // 1. Water impact splash
+      if (curPos.y <= waterY && prevPos.y > waterY) {
+        hit = true;
+        soundManager.playWaterSplash();
+        if (this.colonialWorld) {
+          this.colonialWorld.createStoneChips(curPos.x, waterY + 0.1, curPos.z, 8);
+        }
+      }
+      // 2. Terrain ground impact
+      else if (curPos.y <= terrainY) {
+        hit = true;
+        if (this.colonialWorld) {
+          this.colonialWorld.createStoneChips(curPos.x, terrainY + 0.1, curPos.z, 10);
+        }
+      }
+      // 3. Tree / Rock / Obstacle impact
+      else if (this.colonialWorld) {
+        const nearbyObs = this.colonialWorld.getObstaclesNear(curPos.x, curPos.z, 2.5);
+        for (const obs of nearbyObs) {
+          const distSq = (curPos.x - obs.x) ** 2 + (curPos.z - obs.z) ** 2;
+          if (distSq <= (obs.radius + 0.3) ** 2 && curPos.y >= obs.y && curPos.y <= obs.y + obs.height) {
+            hit = true;
+            if (obs.type === 'tree') {
+              this.colonialWorld.hitTree(obs.id || '', b.damage, dir);
+            } else if (obs.type === 'rock') {
+              this.colonialWorld.hitRock(obs.id || '', b.damage, dir);
+            } else {
+              this.colonialWorld.createWoodChips(curPos.x, curPos.y, curPos.z, 12);
+            }
+            break;
+          }
+        }
+      }
+
+      if (hit || b.age >= b.maxAge) {
+        this.scene.remove(b.mesh);
+        this.activeBullets.splice(i, 1);
+      }
+    }
 
     // Active Throwable Grenade Projectiles Simulation
     for (let i = this.activeGrenades.length - 1; i >= 0; i--) {
@@ -1873,7 +2032,12 @@ export class GameEngine {
       this.ghostBuildingMesh = null;
     }
 
-    // Clean up any remaining grenades & explosions
+    // Clean up any remaining bullets, grenades & explosions
+    for (const b of this.activeBullets) {
+      this.scene.remove(b.mesh);
+    }
+    this.activeBullets = [];
+
     for (const g of this.activeGrenades) {
       this.scene.remove(g.mesh);
     }
