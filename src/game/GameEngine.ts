@@ -71,6 +71,7 @@ export class GameEngine {
   private isRunning: boolean = false;
   private onStateUpdateCb: ((state: PlayerState) => void) | null = null;
   public onHarvestWoodCb: ((amount: number) => void) | null = null;
+  public onHarvestStoneCb: ((amount: number) => void) | null = null;
   public onToggleBackpackCb: (() => void) | null = null;
   public onToggleMapCb: (() => void) | null = null;
   public onToggleBuildCb: (() => void) | null = null;
@@ -1422,7 +1423,14 @@ export class GameEngine {
         if (targetRock && targetRock.id) {
           const spec = SPECIALTIES[this.loadout.specialty];
           const dmg = TOOLS.pickaxe.damage * (spec ? spec.modifiers.damageMultiplier : 1.0);
-          this.colonialWorld.hitRock(targetRock.id, dmg, forwardDir);
+          const res = this.colonialWorld.hitRock(targetRock.id, dmg, forwardDir);
+
+          if (res.broken && res.stoneYield && res.stoneYield > 0) {
+            this.controls.addStone(res.stoneYield);
+            if (this.onHarvestStoneCb) {
+              this.onHarvestStoneCb(res.stoneYield);
+            }
+          }
         } else {
           soundManager.playToolAction('pickaxe');
           const hitX = this.controls.position.x + forwardDir.x * 2.0;

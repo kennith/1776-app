@@ -324,10 +324,10 @@ export class ColonialWorld {
   /**
    * Hits a rock for 10 damage (5 hits shatter the 50 HP boulder)
    */
-  public hitRock(rockId: string, damage: number = 10, _hitDir?: THREE.Vector3): { hit: boolean; broken: boolean; remainingHp: number } {
+  public hitRock(rockId: string, damage: number = 10, _hitDir?: THREE.Vector3): { hit: boolean; broken: boolean; remainingHp: number; stoneYield: number } {
     const rockData = this.rockMap.get(rockId);
     if (!rockData || rockData.isBroken) {
-      return { hit: false, broken: false, remainingHp: 0 };
+      return { hit: false, broken: false, remainingHp: 0, stoneYield: 0 };
     }
 
     const currentHp = rockData.obstacle.health ?? 50;
@@ -355,10 +355,13 @@ export class ColonialWorld {
 
       soundManager.playExplosion();
 
-      return { hit: true, broken: true, remainingHp: 0 };
+      // Random 6-12 stone yield!
+      const stoneYield = Math.floor(Math.random() * 7) + 6;
+
+      return { hit: true, broken: true, remainingHp: 0, stoneYield };
     } else {
       soundManager.playToolAction('pickaxe');
-      return { hit: true, broken: false, remainingHp: newHp };
+      return { hit: true, broken: false, remainingHp: newHp, stoneYield: 0 };
     }
   }
 

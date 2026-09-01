@@ -18,9 +18,10 @@ export class FirstPersonControls {
   public loadout: PlayerLoadout;
   public colonialWorld: ColonialWorld | null = null;
 
-  // Player inventory (Wood Timber)
+  // Player inventory (Wood Timber & Quarry Stone)
   public inventory: PlayerInventory = {
-    wood: 0
+    wood: 0,
+    stone: 0
   };
 
   // Player position & physics
@@ -194,6 +195,11 @@ export class FirstPersonControls {
 
   public addWood(amount: number) {
     this.inventory.wood += amount;
+    soundManager.playWoodHarvest();
+  }
+
+  public addStone(amount: number) {
+    this.inventory.stone += amount;
     soundManager.playWoodHarvest();
   }
 

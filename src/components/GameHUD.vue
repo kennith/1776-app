@@ -187,8 +187,8 @@ const cardinalDirection = computed(() => {
         </div>
         <p class="backpack-sub font-fell">Frontier expedition inventory & harvested timber resources. (Press <strong>E</strong> to close • Movement Active)</p>
 
-        <!-- Inventory Resource Grid (Only Wood Timber) -->
-        <div class="inventory-grid single-item font-cinzel">
+        <!-- Inventory Resource Grid (Wood Timber & Quarry Stone) -->
+        <div class="inventory-grid font-cinzel">
           <div class="inv-item wood-item hero-wood-card">
             <div class="inv-item-icon">🪵</div>
             <div class="inv-item-info">
@@ -196,11 +196,27 @@ const cardinalDirection = computed(() => {
               <div class="inv-item-desc font-fell">Harvested from woodland trees using the Woodsman Felling Axe (9–14 timber per felled tree).</div>
               <div class="inv-item-stats font-cinzel">
                 <span>AXE POWER: <strong>15 DMG</strong></span>
-                <span>CHOP DURATION: <strong>3 SWINGS / TREE</strong></span>
+                <span>CHOP: <strong>3 SWINGS / TREE</strong></span>
               </div>
             </div>
             <div class="inv-item-count hero-count">
               <span class="count-num">{{ playerState.inventory?.wood ?? 0 }}</span>
+              <span class="count-unit">UNITS</span>
+            </div>
+          </div>
+
+          <div class="inv-item stone-item hero-wood-card">
+            <div class="inv-item-icon">🪨</div>
+            <div class="inv-item-info">
+              <div class="inv-item-name font-cinzel">Quarry Granite Stone</div>
+              <div class="inv-item-desc font-fell">Mined from mountain boulders and shoreline rocks using the Frontier Pickaxe (6–12 stone per boulder).</div>
+              <div class="inv-item-stats font-cinzel">
+                <span>PICK POWER: <strong>10 DMG</strong></span>
+                <span>BREAK: <strong>5 HITS / ROCK</strong></span>
+              </div>
+            </div>
+            <div class="inv-item-count hero-count">
+              <span class="count-num">{{ playerState.inventory?.stone ?? 0 }}</span>
               <span class="count-unit">UNITS</span>
             </div>
           </div>
@@ -274,8 +290,8 @@ const cardinalDirection = computed(() => {
         <!-- Expedition Debrief Stats -->
         <div class="death-stats-grid font-cinzel">
           <div class="death-stat-box">
-            <span class="dstat-val">🪵 {{ playerState.inventory?.wood ?? 0 }}</span>
-            <span class="dstat-lbl">TIMBER HARVESTED</span>
+            <span class="dstat-val">🪵 {{ playerState.inventory?.wood ?? 0 }} • 🪨 {{ playerState.inventory?.stone ?? 0 }}</span>
+            <span class="dstat-lbl">RESOURCES HARVESTED</span>
           </div>
           <div class="death-stat-box">
             <span class="dstat-val">{{ SPECIALTIES[loadout.specialty].name }}</span>
@@ -422,7 +438,7 @@ const cardinalDirection = computed(() => {
           <div class="build-dock-header">
             <div class="build-title-row">
               <span class="build-title-badge">🔨 1776 FRONTIER CONSTRUCTION MODE</span>
-              <span class="build-wood-inventory">🪵 <strong>{{ playerState.inventory?.wood ?? 0 }}</strong> WOOD TIMBER IN RUCKSACK</span>
+              <span class="build-wood-inventory">🪵 <strong>{{ playerState.inventory?.wood ?? 0 }}</strong> WOOD • 🪨 <strong>{{ playerState.inventory?.stone ?? 0 }}</strong> STONE</span>
             </div>
             <div class="build-help-hints font-fell">
               <span><strong>[LMB]</strong> Begin Construction ({{ BUILDING_BLUEPRINTS[playerState.selectedBuilding]?.buildTime ?? 2.5 }}s)</span> • 
@@ -650,7 +666,7 @@ const cardinalDirection = computed(() => {
             <div class="slot-icon">🔨</div>
             <div class="slot-info">
               <span class="slot-name">BUILD</span>
-              <span class="slot-cat">🪵 {{ playerState.inventory?.wood ?? 0 }} Wood</span>
+              <span class="slot-cat">🪵 {{ playerState.inventory?.wood ?? 0 }} • 🪨 {{ playerState.inventory?.stone ?? 0 }}</span>
             </div>
           </div>
 

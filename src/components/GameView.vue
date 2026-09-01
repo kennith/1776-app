@@ -60,7 +60,8 @@ const playerState = ref<PlayerState>({
     tool: { isReloading: false, progress: 1.0, remaining: 0 }
   },
   inventory: {
-    wood: 0
+    wood: 0,
+    stone: 0
   },
   isBuildingMode: false,
   selectedBuilding: 'campfire',
@@ -253,6 +254,18 @@ onMounted(() => {
     if (toastTimeout) clearTimeout(toastTimeout);
     harvestToast.value = {
       text: `+${woodYield} Wood Timber 🪵`,
+      id: Date.now()
+    };
+    toastTimeout = setTimeout(() => {
+      harvestToast.value = null;
+    }, 3200);
+  };
+
+  // Listen for Stone Harvest Events (6-12 stone per shattered boulder)
+  gameEngine.onHarvestStoneCb = (stoneYield: number) => {
+    if (toastTimeout) clearTimeout(toastTimeout);
+    harvestToast.value = {
+      text: `+${stoneYield} Quarry Stone 🪨`,
       id: Date.now()
     };
     toastTimeout = setTimeout(() => {

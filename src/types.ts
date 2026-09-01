@@ -59,7 +59,8 @@ export interface TerrainConfig {
 }
 
 export interface PlayerInventory {
-  wood: number; // Wood Timber harvested from felled trees
+  wood: number;  // Wood Timber harvested from felled trees
+  stone: number; // Quarry Stone harvested from mined boulders
 }
 
 export interface PlayerState {
