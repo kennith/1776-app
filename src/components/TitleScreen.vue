@@ -286,11 +286,6 @@ onUnmounted(() => {
       </div>
     </main>
 
-    <!-- Footer with 1776 Historical Metadata -->
-    <footer class="bottom-footer font-fell">
-      <div>JULY 4, 1776 • CONTINENTAL ARMY EXPEDITION • MOUNTAINS REACHING +100FT</div>
-    </footer>
-
     <!-- Instructions Modal -->
     <div v-if="showHelp" class="modal-backdrop" @click="showHelp = false">
       <div class="parchment-modal parchment-border font-fell" @click.stop>
@@ -809,18 +804,6 @@ onUnmounted(() => {
 
 .specialty-pill {
   color: #ffda79 !important;
-}
-
-/* Footer */
-.bottom-footer {
-  position: relative;
-  z-index: 10;
-  padding: 16px;
-  font-size: 0.9rem;
-  letter-spacing: 2px;
-  color: var(--color-antique-gold);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
-  text-align: center;
 }
 
 /* Modal */
