@@ -414,8 +414,8 @@ export class ColonialWorld {
           height: rockH * 1.3,
           type: 'rock'
         });
-      } else if (y > 0 && y <= 2 && Math.random() < 0.2) {
-        // Shoreline stones
+      } else if (y > 10.0 && y <= 13.0 && Math.random() < 0.2) {
+        // Shoreline stones along coastal and river beaches
         const rock = new THREE.Mesh(rockGeom1, rockMat);
         const rScale = 0.6 + Math.random() * 0.8;
         const stoneH = rScale * 0.5;

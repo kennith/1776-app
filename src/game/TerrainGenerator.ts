@@ -40,16 +40,144 @@ export class TerrainGenerator {
   }
 
   /**
+   * Evaluates the river carving profile at (x, z).
+   * Generates exactly 1 long East-to-West river across the entire map,
+   * and 4 distinct secondary rivers across the quadrants.
+   */
+  private getRiverProfile(x: number, z: number): { isRiver: boolean; bedHeight: number; factor: number } {
+    let minT = 1.0;
+    let targetBed = 2.5;
+
+    // Helper: Distance to 2D line segment
+    const distToSeg = (px: number, pz: number, ax: number, az: number, bx: number, bz: number) => {
+      const dx = bx - ax;
+      const dz = bz - az;
+      const l2 = dx * dx + dz * dz;
+      if (l2 === 0) return Math.hypot(px - ax, pz - az);
+      let t = ((px - ax) * dx + (pz - az) * dz) / l2;
+      t = Math.max(0, Math.min(1, t));
+      return Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
+    };
+
+    // -------------------------------------------------------------
+    // 1. Long Main River (East to West across the entire 2000m map)
+    // -------------------------------------------------------------
+    const mainRiverZ = -75 + Math.sin(x * 0.004) * 80 + Math.cos(x * 0.011) * 35 + this.warpNoise2D(x * 0.002, 12.0) * 45;
+    const distMain = Math.abs(z - mainRiverZ);
+    const mainHalfWidth = 24.0; // 48 meters wide
+
+    if (distMain < mainHalfWidth) {
+      const t = distMain / mainHalfWidth;
+      if (t < minT) {
+        minT = t;
+        targetBed = 2.0; // 8 meters deep water below waterLevel 10.0
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 2. River #1: North Tributary River
+    // -------------------------------------------------------------
+    const northRiverX = 260 + Math.sin(z * 0.007) * 75 + this.warpNoise2D(z * 0.003, 44.0) * 35;
+    if (z >= -850 && z <= -60) {
+      const distN = Math.abs(x - northRiverX);
+      const nHalfWidth = 18.0;
+      if (distN < nHalfWidth) {
+        const t = distN / nHalfWidth;
+        if (t < minT) {
+          minT = t;
+          targetBed = 3.0;
+        }
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 3. River #2: Northwest Mountain Gorge River
+    // -------------------------------------------------------------
+    const nwPts = [
+      { x: -820, z: -750 },
+      { x: -640, z: -530 },
+      { x: -470, z: -320 },
+      { x: -330, z: -110 }
+    ];
+    for (let i = 0; i < nwPts.length - 1; i++) {
+      const p1 = nwPts[i];
+      const p2 = nwPts[i + 1];
+      const d = distToSeg(x, z, p1.x, p1.z, p2.x, p2.z);
+      const nwHalfWidth = 17.0;
+      if (d < nwHalfWidth) {
+        const t = d / nwHalfWidth;
+        if (t < minT) {
+          minT = t;
+          targetBed = 3.2;
+        }
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 4. River #3: Southwest Serpentine River
+    // -------------------------------------------------------------
+    const swPts = [
+      { x: -850, z: 200 },
+      { x: -680, z: 380 },
+      { x: -520, z: 580 },
+      { x: -380, z: 780 }
+    ];
+    for (let i = 0; i < swPts.length - 1; i++) {
+      const p1 = swPts[i];
+      const p2 = swPts[i + 1];
+      const d = distToSeg(x, z, p1.x, p1.z, p2.x, p2.z);
+      const swHalfWidth = 17.0;
+      if (d < swHalfWidth) {
+        const t = d / swHalfWidth;
+        if (t < minT) {
+          minT = t;
+          targetBed = 2.8;
+        }
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 5. River #4: Southeast Highland River
+    // -------------------------------------------------------------
+    const sePts = [
+      { x: 800, z: 750 },
+      { x: 620, z: 540 },
+      { x: 410, z: 360 },
+      { x: 220, z: 180 }
+    ];
+    for (let i = 0; i < sePts.length - 1; i++) {
+      const p1 = sePts[i];
+      const p2 = sePts[i + 1];
+      const d = distToSeg(x, z, p1.x, p1.z, p2.x, p2.z);
+      const seHalfWidth = 17.0;
+      if (d < seHalfWidth) {
+        const t = d / seHalfWidth;
+        if (t < minT) {
+          minT = t;
+          targetBed = 3.0;
+        }
+      }
+    }
+
+    return {
+      isRiver: minT < 1.0,
+      bedHeight: targetBed,
+      factor: minT
+    };
+  }
+
+  /**
    * Calculates the exact terrain height at coordinate (x, z)
-   * Guaranteed to map smoothly between minValleyY (-5) and maxMountainY (120),
-   * with the baseline plateau around y = 20, and tapers down into an endless sea at the borders.
+   * Guaranteed to maintain solid dry land across the continent,
+   * carving exactly 1 long East-to-West river and 4 distinct secondary rivers,
+   * and tapering down into an endless sea at the borders.
    */
   public getHeightAt(x: number, z: number): number {
-    // Domain warping for natural mountain ridges and winding river valleys
+    // Domain warping for natural mountain ridges
     const warpX = x + this.warpNoise2D(x * 0.0015, z * 0.0015) * 55;
     const warpZ = z + this.warpNoise2D(z * 0.0015, x * 0.0015) * 55;
 
-    // Macro elevation (mountains vs plains vs valleys)
+    // Macro elevation (mountains vs plains)
     const n1 = this.noise2D(warpX * this.config.mountainScale, warpZ * this.config.mountainScale);
     
     // Medium hills & ridges
@@ -61,7 +189,7 @@ export class TerrainGenerator {
     // Combined normalized noise
     let rawNoise = n1 * 1.0 + n2 + n3;
     
-    // Smooth shaping: push peaks higher (mountain ridges) and carve valleys
+    // Smooth shaping: push peaks higher (mountain ridges)
     if (rawNoise > 0.15) {
       const peakFactor = Math.pow((rawNoise - 0.15) / 1.6, 1.3);
       rawNoise = 0.15 + peakFactor * 1.6;
@@ -70,17 +198,22 @@ export class TerrainGenerator {
     // Map to normalized 0..1 range
     const t = THREE.MathUtils.clamp((rawNoise + 1.25) / 2.8, 0, 1);
 
-    // Height formula:
-    // If t < 0.25 -> Interpolate from minValleyY (-5) to baselineY (20)
-    // If t >= 0.25 -> Interpolate from baselineY (20) to maxMountainY (120)
+    // Baseline dry land: minimum terrestrial elevation is 15.5m (well above water level 10.0)
     let height: number;
     if (t < 0.25) {
       const valleyT = t / 0.25;
-      height = THREE.MathUtils.lerp(this.config.minValleyY, this.config.baselineY, valleyT);
+      height = THREE.MathUtils.lerp(15.5, this.config.baselineY, valleyT);
     } else {
       const mountainT = (t - 0.25) / 0.75;
       const smoothMountainT = mountainT * mountainT * (3 - 2 * mountainT);
       height = THREE.MathUtils.lerp(this.config.baselineY, this.config.maxMountainY, smoothMountainT);
+    }
+
+    // Carve exactly the 1 East-to-West Long River + 4 Secondary Rivers
+    const river = this.getRiverProfile(x, z);
+    if (river.isRiver) {
+      const smoothBank = river.factor * river.factor * (3 - 2 * river.factor);
+      height = THREE.MathUtils.lerp(river.bedHeight, height, smoothBank);
     }
 
     // Keep initial spawn region near (0,0) gently contoured around baseline y=20
