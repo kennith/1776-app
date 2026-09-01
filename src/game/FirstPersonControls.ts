@@ -76,6 +76,7 @@ export class FirstPersonControls {
   public constructionTimeTotal: number = 0;
   public constructionRemaining: number = 0;
   public constructingBuildingName: string = '';
+  public perspective: 'first' | 'third' = 'first';
 
   // Key state map
   private keys: Record<string, boolean> = {};
@@ -252,7 +253,17 @@ export class FirstPersonControls {
   private onKeyDown(e: KeyboardEvent) {
     if (this.isDead) return;
     this.keys[e.code] = true;
-    if (e.key === 'Control') this.keys['Control'] = true;
+    if (e.code === 'KeyC') this.keys['KeyC'] = true;
+    if (e.key === 'Control' || e.code === 'ControlLeft' || e.code === 'ControlRight' || e.ctrlKey) {
+      this.keys['Control'] = true;
+      this.keys['ControlLeft'] = true;
+    }
+
+    // Toggle Camera Perspective: First-Person <-> Third-Person with [Z]
+    if (e.code === 'KeyZ') {
+      this.perspective = this.perspective === 'first' ? 'third' : 'first';
+      soundManager.playClick();
+    }
 
     const canMove = this.isLocked || this.isMapOpen || this.isBackpackOpen;
 
@@ -326,7 +337,12 @@ export class FirstPersonControls {
 
   private onKeyUp(e: KeyboardEvent) {
     this.keys[e.code] = false;
-    if (e.key === 'Control') this.keys['Control'] = false;
+    if (e.code === 'KeyC') this.keys['KeyC'] = false;
+    if (e.key === 'Control' || e.code === 'ControlLeft' || e.code === 'ControlRight' || !e.ctrlKey) {
+      this.keys['Control'] = false;
+      this.keys['ControlLeft'] = false;
+      this.keys['ControlRight'] = false;
+    }
   }
 
   private onWheel(e: WheelEvent) {
@@ -526,9 +542,9 @@ export class FirstPersonControls {
       }
     }
     
-    // Land Crouching with Control Key (when not swimming)
+    // Land Crouching with Control or C Key (when not swimming)
     const wantsToCrouch = canMove && !this.isDead && !this.isSwimming && Boolean(
-      this.keys['ControlLeft'] || this.keys['ControlRight'] || this.keys['Control']
+      this.keys['ControlLeft'] || this.keys['ControlRight'] || this.keys['Control'] || this.keys['KeyC']
     );
     this.isCrouching = wantsToCrouch && this.isGrounded;
 
@@ -621,7 +637,6 @@ export class FirstPersonControls {
     if (this.isUnderwater) {
       this.breath = Math.max(0, this.breath - dt);
       if (this.breath <= 0) {
-        // Drowning damage: 20 HP/second when oxygen depleted
         this.health = Math.max(0, this.health - 20 * dt);
       }
       this.wasUnderwater = true;
@@ -663,13 +678,10 @@ export class FirstPersonControls {
       const wantsToSurface = canMove && !this.isDead && Boolean(this.keys['Space']);
 
       if (wantsToSink) {
-        // Actively dive & sink down into deep water when holding Control
         this.velocity.y = Math.max(this.velocity.y - 28 * dt, -6.5);
       } else if (wantsToSurface) {
-        // Swim upwards towards the surface with Space
         this.velocity.y = Math.min(this.velocity.y + 26 * dt, 5.5);
       } else {
-        // Natural neutral buoyancy floating to surface
         if (this.position.y < surfaceEyeY) {
           this.velocity.y += (18 + (surfaceEyeY - this.position.y) * 12) * dt;
         } else {
@@ -677,7 +689,6 @@ export class FirstPersonControls {
         }
       }
 
-      // Water drag dampens vertical momentum
       this.velocity.y *= Math.pow(0.20, dt);
       this.position.y += this.velocity.y * dt;
     } else {
@@ -685,7 +696,6 @@ export class FirstPersonControls {
       this.velocity.y -= this.gravity * dt;
       this.position.y += this.velocity.y * dt;
 
-      // Track downward velocity for fall damage calculation
       if (!this.isGrounded && this.velocity.y < 0) {
         this.maxFallVelocity = Math.max(this.maxFallVelocity, -this.velocity.y);
       }
@@ -696,7 +706,6 @@ export class FirstPersonControls {
     let groundY = terrainY;
     const playerFeetYCurrent = this.position.y - this.eyeHeight;
 
-    // Check if player is landing on or standing on top of a rock/boulder/obstacle
     if (this.colonialWorld) {
       const nearby = this.colonialWorld.getObstaclesNear(this.position.x, this.position.z, 4);
       for (let i = 0; i < nearby.length; i++) {
@@ -717,14 +726,18 @@ export class FirstPersonControls {
 
     const targetY = groundY + this.eyeHeight;
 
-    if (this.position.y <= targetY) {
+    // Smoothly adhere to ground height when already grounded and not jumping
+    if (this.isGrounded && !this.isSwimming && this.velocity.y <= 0.1) {
+      this.position.y = targetY;
+      this.velocity.y = 0;
+      this.maxFallVelocity = 0;
+    } else if (this.position.y <= targetY) {
       this.position.y = targetY;
 
       // Fall Damage Calculation upon Landing (Impacts > 16.5 m/s)
       if (!this.isGrounded && !this.isSwimming && !this.isDead) {
         const impactVelocity = Math.max(this.maxFallVelocity, Math.abs(this.velocity.y));
         if (impactVelocity > 16.5) {
-          // Reduced by 50% from 4.0 to 2.0 damage per velocity unit
           const fallDamage = Math.round((impactVelocity - 16.5) * 2.0);
           if (fallDamage > 0) {
             this.health = Math.max(0, this.health - fallDamage);
@@ -753,11 +766,50 @@ export class FirstPersonControls {
       this.isGrounded = false;
     }
 
-    this.camera.position.set(
-      this.position.x,
-      this.position.y + this.headBobOffset,
-      this.position.z
-    );
+    // Camera Transform Positioning: First-Person vs Third-Person Over-the-Shoulder
+    const forwardVec = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
+    const rightVec = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
+
+    if (this.perspective === 'first') {
+      this.camera.position.set(
+        this.position.x,
+        this.position.y + this.headBobOffset,
+        this.position.z
+      );
+      this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+    } else {
+      // Third-Person Over-the-Shoulder Camera
+      const camDist = 3.2;
+      const shoulderOffset = 0.65;
+      const heightOffset = 0.35;
+
+      const camDir = new THREE.Vector3(0, 0, 1)
+        .applyAxisAngle(new THREE.Vector3(1, 0, 0), this.pitch)
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
+
+      const targetCamPos = new THREE.Vector3(
+        this.position.x + rightVec.x * shoulderOffset + camDir.x * camDist,
+        this.position.y + heightOffset + camDir.y * camDist,
+        this.position.z + rightVec.z * shoulderOffset + camDir.z * camDist
+      );
+
+      // Prevent camera from clipping through terrain ground
+      const camGroundY = this.terrain.getHeightAt(targetCamPos.x, targetCamPos.z);
+      if (targetCamPos.y < camGroundY + 0.65) {
+        targetCamPos.y = camGroundY + 0.65;
+      }
+
+      this.camera.position.copy(targetCamPos);
+
+      // Point camera at forward crosshair aim target
+      const lookDist = 30.0;
+      const aimTarget = new THREE.Vector3(
+        this.position.x + forwardVec.x * lookDist,
+        this.position.y + Math.tan(-this.pitch) * lookDist,
+        this.position.z + forwardVec.z * lookDist
+      );
+      this.camera.lookAt(aimTarget);
+    }
 
     let headingDegrees = THREE.MathUtils.radToDeg(-this.yaw) % 360;
     if (headingDegrees < 0) headingDegrees += 360;
@@ -796,7 +848,8 @@ export class FirstPersonControls {
       constructionProgress: this.constructionProgress,
       constructionTimeTotal: this.constructionTimeTotal,
       constructionRemaining: Math.round(this.constructionRemaining * 10) / 10,
-      constructingBuildingName: this.constructingBuildingName
+      constructingBuildingName: this.constructingBuildingName,
+      perspective: this.perspective
     };
   }
 

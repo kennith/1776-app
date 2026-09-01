@@ -29,6 +29,7 @@ const emit = defineEmits<{
   (e: 'respawn'): void;
   (e: 'shoot'): void;
   (e: 'switch-slot', slot: 'main' | 'sub' | 'tool'): void;
+  (e: 'toggle-perspective'): void;
 }>();
 
 const isMuted = ref(false);
@@ -305,12 +306,15 @@ const cardinalDirection = computed(() => {
         <div class="prompt-keys">
           <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</div>
           <div><kbd>SHIFT</kbd> Sprint</div>
+          <div><kbd>CTRL</kbd> / <kbd>C</kbd> Crouch</div>
+          <div><kbd>Z</kbd> 1st / 3rd Person View</div>
           <div><kbd>SPACE</kbd> Jump / Vault</div>
           <div><kbd>E</kbd> Backpack</div>
           <div><kbd>Q</kbd> Map</div>
+          <div><kbd>B</kbd> Build Mode</div>
           <div><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> Weapons</div>
-          <div><kbd>CLICK</kbd> Attack / Chop</div>
-          <div><kbd>ESC</kbd> Pause / Menu</div>
+          <div><kbd>CLICK</kbd> Attack / Chop / Build</div>
+          <div><kbd>ESC</kbd> Pause / Menu / Cancel</div>
         </div>
         <div class="loadout-summary-pill font-cinzel">
           Specialty: <strong>{{ SPECIALTIES[loadout.specialty].name }}</strong> ({{ SPECIALTIES[loadout.specialty].tagline }})
@@ -633,6 +637,21 @@ const cardinalDirection = computed(() => {
             <div class="slot-info">
               <span class="slot-name">BUILD</span>
               <span class="slot-cat">🪵 {{ playerState.inventory?.wood ?? 0 }} Wood</span>
+            </div>
+          </div>
+
+          <!-- Camera Perspective Toggle Button ([Z]) -->
+          <div
+            class="hotbar-slot perspective-hotbar-slot"
+            :class="{ active: playerState.perspective === 'third' }"
+            @click="emit('toggle-perspective')"
+            title="Press Z to toggle 1st / 3rd Person Camera View"
+          >
+            <div class="slot-num">Z</div>
+            <div class="slot-icon">{{ playerState.perspective === 'third' ? '👤' : '👁️' }}</div>
+            <div class="slot-info">
+              <span class="slot-name">{{ playerState.perspective === 'third' ? '3RD PERSON' : '1ST PERSON' }}</span>
+              <span class="slot-cat">VIEW • [Z]</span>
             </div>
           </div>
         </div>
@@ -1677,8 +1696,26 @@ const cardinalDirection = computed(() => {
 
 .hotbar-slot.active {
   background: radial-gradient(circle at center, #2c3e50 0%, #0d1b2a 100%);
-  border: 2px solid var(--color-patriot-gold);
+  border-color: var(--color-patriot-gold);
   box-shadow: 0 0 15px rgba(212, 175, 55, 0.6);
+}
+
+.perspective-hotbar-slot {
+  background: rgba(20, 30, 45, 0.85);
+  border: 1.5px solid rgba(212, 175, 55, 0.4);
+  transition: all 0.2s ease;
+}
+
+.perspective-hotbar-slot:hover {
+  background: rgba(30, 45, 70, 0.95);
+  border-color: var(--color-patriot-gold);
+  transform: translateY(-2px);
+}
+
+.perspective-hotbar-slot.active {
+  background: radial-gradient(circle at center, rgba(30, 55, 90, 0.95) 0%, rgba(15, 25, 45, 0.98) 100%);
+  border-color: #85c1e9;
+  box-shadow: 0 0 15px rgba(133, 193, 233, 0.6);
 }
 
 .slot-num {

@@ -56,6 +56,16 @@ export class GameEngine {
   private constructionTarget: { x: number; y: number; z: number; rot: number; type: BuildingId } | null = null;
   private hammerSoundTimer: number = 0;
 
+  // Third-Person Player Character 3D Model
+  private playerCharacterModel: THREE.Group = new THREE.Group();
+  private playerCharTorso: THREE.Group = new THREE.Group();
+  private playerCharLeftLeg: THREE.Group = new THREE.Group();
+  private playerCharRightLeg: THREE.Group = new THREE.Group();
+  private playerCharLeftArm: THREE.Group = new THREE.Group();
+  private playerCharRightArm: THREE.Group = new THREE.Group();
+  private playerCharHeldWeapon: THREE.Group = new THREE.Group();
+  private walkCycleTimer: number = 0;
+
   private clock: THREE.Clock;
   private animationFrameId: number | null = null;
   private isRunning: boolean = false;
@@ -119,8 +129,9 @@ export class GameEngine {
     this.colonialWorld.populate();
     this.controls.setColonialWorld(this.colonialWorld);
 
-    // Setup 3D Weapon Rig
+    // Setup 3D Weapon Rig & Third-Person Player Character Model
     this.setupWeaponRig();
+    this.buildPlayerCharacterModel();
     this.rebuildWeaponViewModel('main');
 
     this.onResizeBound = this.onWindowResize.bind(this);
@@ -140,7 +151,195 @@ export class GameEngine {
   }
 
   /**
-   * Rebuilds the 3D first person viewmodel according to the active loadout slot
+   * Builds the authentic 1776 Continental Soldier 3D Player Character Model for Third-Person Perspective
+   */
+  private buildPlayerCharacterModel() {
+    this.playerCharacterModel = new THREE.Group();
+
+    const coatMat = new THREE.MeshStandardMaterial({ color: 0x1b3b6f, roughness: 0.75, metalness: 0.1 });
+    const lapelMat = new THREE.MeshStandardMaterial({ color: 0xecd9b5, roughness: 0.85, metalness: 0.05 });
+    const breechesMat = new THREE.MeshStandardMaterial({ color: 0xe0d4b8, roughness: 0.85 });
+    const bootMat = new THREE.MeshStandardMaterial({ color: 0x1a1512, roughness: 0.55, metalness: 0.25 });
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xdfb48c, roughness: 0.65 });
+    const hairMat = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.9 });
+    const hatMat = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.8 });
+    const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.25, metalness: 0.95 });
+    const beltMat = new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.6 });
+
+    // 1. Torso Group
+    this.playerCharTorso = new THREE.Group();
+    this.playerCharTorso.position.y = 0.85;
+
+    // Coat Body
+    const coatBody = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.62, 0.28), coatMat);
+    coatBody.castShadow = true;
+    this.playerCharTorso.add(coatBody);
+
+    // Buff Waistcoat / Lapels Insert
+    const vest = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.54, 0.29), lapelMat);
+    vest.position.set(0, -0.02, 0.01);
+    this.playerCharTorso.add(vest);
+
+    // Dual White Crossbelts
+    const belt1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.64, 0.30), beltMat);
+    belt1.rotation.z = 0.45;
+    this.playerCharTorso.add(belt1);
+
+    const belt2 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.64, 0.30), beltMat);
+    belt2.rotation.z = -0.45;
+    this.playerCharTorso.add(belt2);
+
+    // Central Brass Belt Plate
+    const badge = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.015, 12), goldMat);
+    badge.rotation.x = Math.PI / 2;
+    badge.position.set(0, 0, 0.155);
+    this.playerCharTorso.add(badge);
+
+    // Coat Tails
+    const tailL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.32, 0.05), coatMat);
+    tailL.position.set(-0.12, -0.38, -0.12);
+    tailL.rotation.x = 0.15;
+    this.playerCharTorso.add(tailL);
+
+    const tailR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.32, 0.05), coatMat);
+    tailR.position.set(0.12, -0.38, -0.12);
+    tailR.rotation.x = 0.15;
+    this.playerCharTorso.add(tailR);
+
+    // 2. Head & Hat
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, 0.46, 0);
+
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.24, 0.22), skinMat);
+    head.castShadow = true;
+    headGroup.add(head);
+
+    const queue = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.025, 0.16, 8), hairMat);
+    queue.position.set(0, -0.06, -0.13);
+    queue.rotation.x = -0.2;
+    headGroup.add(queue);
+
+    const hatCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.17, 0.09, 8), hatMat);
+    hatCrown.position.set(0, 0.15, 0);
+    headGroup.add(hatCrown);
+
+    const brimGeom = new THREE.BoxGeometry(0.32, 0.12, 0.02);
+
+    const brimBack = new THREE.Mesh(brimGeom, hatMat);
+    brimBack.position.set(0, 0.16, -0.13);
+    brimBack.rotation.x = 0.4;
+    headGroup.add(brimBack);
+
+    const brimLeft = new THREE.Mesh(brimGeom, hatMat);
+    brimLeft.position.set(-0.12, 0.16, 0.06);
+    brimLeft.rotation.set(-0.3, 0, 0.6);
+    headGroup.add(brimLeft);
+
+    const brimRight = new THREE.Mesh(brimGeom, hatMat);
+    brimRight.position.set(0.12, 0.16, 0.06);
+    brimRight.rotation.set(-0.3, 0, -0.6);
+    headGroup.add(brimRight);
+
+    const cockade = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.01, 8), goldMat);
+    cockade.rotation.z = Math.PI / 2;
+    cockade.position.set(-0.14, 0.18, 0.06);
+    headGroup.add(cockade);
+
+    this.playerCharTorso.add(headGroup);
+
+    // 3. Left Arm
+    this.playerCharLeftArm = new THREE.Group();
+    this.playerCharLeftArm.position.set(-0.28, 0.24, 0);
+
+    const lEpaulette = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.12), goldMat);
+    lEpaulette.position.set(0, 0.04, 0);
+    this.playerCharLeftArm.add(lEpaulette);
+
+    const lSleeve = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.42, 0.12), coatMat);
+    lSleeve.position.set(0, -0.18, 0);
+    this.playerCharLeftArm.add(lSleeve);
+
+    const lCuff = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.08, 0.13), lapelMat);
+    lCuff.position.set(0, -0.34, 0);
+    this.playerCharLeftArm.add(lCuff);
+
+    const lHand = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.10, 0.09), skinMat);
+    lHand.position.set(0, -0.42, 0);
+    this.playerCharLeftArm.add(lHand);
+
+    this.playerCharTorso.add(this.playerCharLeftArm);
+
+    // 4. Right Arm (Holding Weapon)
+    this.playerCharRightArm = new THREE.Group();
+    this.playerCharRightArm.position.set(0.28, 0.24, 0);
+
+    const rEpaulette = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.12), goldMat);
+    rEpaulette.position.set(0, 0.04, 0);
+    this.playerCharRightArm.add(rEpaulette);
+
+    const rSleeve = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.42, 0.12), coatMat);
+    rSleeve.position.set(0, -0.18, 0);
+    this.playerCharRightArm.add(rSleeve);
+
+    const rCuff = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.08, 0.13), lapelMat);
+    rCuff.position.set(0, -0.34, 0);
+    this.playerCharRightArm.add(rCuff);
+
+    const rHand = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.10, 0.09), skinMat);
+    rHand.position.set(0, -0.42, 0);
+    this.playerCharRightArm.add(rHand);
+
+    this.playerCharHeldWeapon = new THREE.Group();
+    this.playerCharHeldWeapon.position.set(0, -0.44, 0.05);
+    this.playerCharRightArm.add(this.playerCharHeldWeapon);
+
+    this.playerCharTorso.add(this.playerCharRightArm);
+    this.playerCharacterModel.add(this.playerCharTorso);
+
+    // 5. Left Leg
+    this.playerCharLeftLeg = new THREE.Group();
+    this.playerCharLeftLeg.position.set(-0.13, 0.85, 0);
+
+    const lThigh = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.40, 0.16), breechesMat);
+    lThigh.position.set(0, -0.20, 0);
+    this.playerCharLeftLeg.add(lThigh);
+
+    const lBoot = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.48, 0.18), bootMat);
+    lBoot.position.set(0, -0.58, 0.02);
+    lBoot.castShadow = true;
+    this.playerCharLeftLeg.add(lBoot);
+
+    const lBuckle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 0.02), goldMat);
+    lBuckle.position.set(0, -0.74, 0.12);
+    this.playerCharLeftLeg.add(lBuckle);
+
+    this.playerCharacterModel.add(this.playerCharLeftLeg);
+
+    // 6. Right Leg
+    this.playerCharRightLeg = new THREE.Group();
+    this.playerCharRightLeg.position.set(0.13, 0.85, 0);
+
+    const rThigh = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.40, 0.16), breechesMat);
+    rThigh.position.set(0, -0.20, 0);
+    this.playerCharRightLeg.add(rThigh);
+
+    const rBoot = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.48, 0.18), bootMat);
+    rBoot.position.set(0, -0.58, 0.02);
+    rBoot.castShadow = true;
+    this.playerCharRightLeg.add(rBoot);
+
+    const rBuckle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 0.02), goldMat);
+    rBuckle.position.set(0, -0.74, 0.12);
+    this.playerCharRightLeg.add(rBuckle);
+
+    this.playerCharacterModel.add(this.playerCharRightLeg);
+
+    this.scene.add(this.playerCharacterModel);
+    this.playerCharacterModel.visible = false;
+  }
+
+  /**
+   * Rebuilds the 3D first person viewmodel and third-person held weapon according to the active loadout slot
    */
   public rebuildWeaponViewModel(slot: 'main' | 'sub' | 'tool') {
     while (this.activeWeaponMesh.children.length > 0) {
@@ -148,42 +347,62 @@ export class GameEngine {
     }
     this.weaponPivot.remove(this.activeWeaponMesh);
 
+    while (this.playerCharHeldWeapon.children.length > 0) {
+      this.playerCharHeldWeapon.remove(this.playerCharHeldWeapon.children[0]);
+    }
+
     this.activeWeaponMesh = new THREE.Group();
+    const thirdPersonWeapon = new THREE.Group();
 
     if (slot === 'main') {
       const mainId = this.loadout.mainWeapon;
       if (mainId === 'sword') {
         this.buildSwordModel(this.activeWeaponMesh);
+        this.buildSwordModel(thirdPersonWeapon);
       } else if (mainId === 'kentucky') {
         this.buildKentuckyRifleModel(this.activeWeaponMesh);
+        this.buildKentuckyRifleModel(thirdPersonWeapon);
       } else if (mainId === 'brown_bess') {
         this.buildBrownBessModel(this.activeWeaponMesh);
+        this.buildBrownBessModel(thirdPersonWeapon);
       } else {
         this.buildSpringfieldModel(this.activeWeaponMesh);
+        this.buildSpringfieldModel(thirdPersonWeapon);
       }
     } else if (slot === 'sub') {
       const subId = this.loadout.subWeapon;
       if (subId === 'knife') {
         this.buildKnifeModel(this.activeWeaponMesh);
+        this.buildKnifeModel(thirdPersonWeapon);
       } else if (subId === 'machete') {
         this.buildMacheteModel(this.activeWeaponMesh);
+        this.buildMacheteModel(thirdPersonWeapon);
       } else if (subId === 'grenade') {
         this.buildGrenadeModel(this.activeWeaponMesh);
+        this.buildGrenadeModel(thirdPersonWeapon);
       } else {
         this.buildPistolModel(this.activeWeaponMesh);
+        this.buildPistolModel(thirdPersonWeapon);
       }
     } else {
       const toolId = this.loadout.tool;
       if (toolId === 'shovel') {
         this.buildShovelModel(this.activeWeaponMesh);
+        this.buildShovelModel(thirdPersonWeapon);
       } else if (toolId === 'med_kit') {
         this.buildMedKitModel(this.activeWeaponMesh);
+        this.buildMedKitModel(thirdPersonWeapon);
       } else {
         this.buildAxeModel(this.activeWeaponMesh);
+        this.buildAxeModel(thirdPersonWeapon);
       }
     }
 
     this.weaponPivot.add(this.activeWeaponMesh);
+
+    thirdPersonWeapon.scale.set(0.85, 0.85, 0.85);
+    thirdPersonWeapon.rotation.set(Math.PI / 2, 0, 0);
+    this.playerCharHeldWeapon.add(thirdPersonWeapon);
   }
 
   // --- Weapon 3D Model Builders ---
@@ -1300,6 +1519,50 @@ export class GameEngine {
       }
     }
 
+    // Update Third-Person Character Model Visibility & Procedural Animation
+    if (playerState.perspective === 'third') {
+      this.playerCharacterModel.visible = true;
+      this.weaponPivot.visible = false;
+
+      const groundY = this.terrain.getHeightAt(this.controls.position.x, this.controls.position.z);
+      this.playerCharacterModel.position.set(this.controls.position.x, groundY, this.controls.position.z);
+      this.playerCharacterModel.rotation.y = this.controls.yaw;
+
+      const isMoving = playerState.speed > 0.1;
+      if (isMoving && !this.controls.isDead) {
+        this.walkCycleTimer += delta * (playerState.speed > 6.0 ? 12.0 : 7.0);
+        const legSwing = Math.sin(this.walkCycleTimer) * 0.75;
+        this.playerCharLeftLeg.rotation.x = legSwing;
+        this.playerCharRightLeg.rotation.x = -legSwing;
+        this.playerCharLeftArm.rotation.x = -legSwing * 0.55;
+        this.playerCharRightArm.rotation.x = legSwing * 0.40 - 0.35;
+      } else {
+        this.playerCharLeftLeg.rotation.x = THREE.MathUtils.lerp(this.playerCharLeftLeg.rotation.x, 0, delta * 10);
+        this.playerCharRightLeg.rotation.x = THREE.MathUtils.lerp(this.playerCharRightLeg.rotation.x, 0, delta * 10);
+        this.playerCharLeftArm.rotation.x = THREE.MathUtils.lerp(this.playerCharLeftArm.rotation.x, 0, delta * 10);
+        this.playerCharRightArm.rotation.x = THREE.MathUtils.lerp(this.playerCharRightArm.rotation.x, -0.3, delta * 10);
+      }
+
+      // Crouch pose
+      if (this.controls.isCrouching) {
+        this.playerCharTorso.position.y = THREE.MathUtils.lerp(this.playerCharTorso.position.y, 0.50, delta * 14);
+        this.playerCharLeftLeg.rotation.x = THREE.MathUtils.lerp(this.playerCharLeftLeg.rotation.x, 0.65, delta * 14);
+        this.playerCharRightLeg.rotation.x = THREE.MathUtils.lerp(this.playerCharRightLeg.rotation.x, -0.40, delta * 14);
+      } else {
+        this.playerCharTorso.position.y = THREE.MathUtils.lerp(this.playerCharTorso.position.y, 0.85, delta * 14);
+      }
+
+      // Swimming pose
+      if (this.controls.isSwimming) {
+        this.playerCharacterModel.rotation.x = THREE.MathUtils.lerp(this.playerCharacterModel.rotation.x, 1.15, delta * 8);
+      } else {
+        this.playerCharacterModel.rotation.x = THREE.MathUtils.lerp(this.playerCharacterModel.rotation.x, 0, delta * 10);
+      }
+    } else {
+      this.playerCharacterModel.visible = false;
+      this.weaponPivot.visible = true;
+    }
+
     this.renderer.render(this.scene, this.camera);
 
     if (this.onStateUpdateCb) {
@@ -1338,6 +1601,11 @@ export class GameEngine {
     this.stop();
     window.removeEventListener('resize', this.onResizeBound);
     this.controls.destroy();
+
+    // Clean up character model
+    if (this.playerCharacterModel) {
+      this.scene.remove(this.playerCharacterModel);
+    }
 
     // Clean up holographic ghost building preview
     if (this.ghostBuildingMesh) {
