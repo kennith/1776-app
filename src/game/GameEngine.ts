@@ -64,7 +64,6 @@ export class GameEngine {
   private playerCharLeftArm: THREE.Group = new THREE.Group();
   private playerCharRightArm: THREE.Group = new THREE.Group();
   private playerCharHeldWeapon: THREE.Group = new THREE.Group();
-  private walkCycleTimer: number = 0;
 
   private clock: THREE.Clock;
   private animationFrameId: number | null = null;
@@ -1711,49 +1710,9 @@ export class GameEngine {
       }
     }
 
-    // Update Third-Person Character Model Visibility & Procedural Animation
-    if (playerState.perspective === 'third') {
-      this.playerCharacterModel.visible = true;
-      this.weaponPivot.visible = false;
-
-      const groundY = this.terrain.getHeightAt(this.controls.position.x, this.controls.position.z);
-      this.playerCharacterModel.position.set(this.controls.position.x, groundY, this.controls.position.z);
-      this.playerCharacterModel.rotation.y = this.controls.yaw;
-
-      const isMoving = playerState.speed > 0.1;
-      if (isMoving && !this.controls.isDead) {
-        this.walkCycleTimer += delta * (playerState.speed > 6.0 ? 12.0 : 7.0);
-        const legSwing = Math.sin(this.walkCycleTimer) * 0.75;
-        this.playerCharLeftLeg.rotation.x = legSwing;
-        this.playerCharRightLeg.rotation.x = -legSwing;
-        this.playerCharLeftArm.rotation.x = -legSwing * 0.55;
-        this.playerCharRightArm.rotation.x = legSwing * 0.40 - 0.35;
-      } else {
-        this.playerCharLeftLeg.rotation.x = THREE.MathUtils.lerp(this.playerCharLeftLeg.rotation.x, 0, delta * 10);
-        this.playerCharRightLeg.rotation.x = THREE.MathUtils.lerp(this.playerCharRightLeg.rotation.x, 0, delta * 10);
-        this.playerCharLeftArm.rotation.x = THREE.MathUtils.lerp(this.playerCharLeftArm.rotation.x, 0, delta * 10);
-        this.playerCharRightArm.rotation.x = THREE.MathUtils.lerp(this.playerCharRightArm.rotation.x, -0.3, delta * 10);
-      }
-
-      // Crouch pose
-      if (this.controls.isCrouching) {
-        this.playerCharTorso.position.y = THREE.MathUtils.lerp(this.playerCharTorso.position.y, 0.50, delta * 14);
-        this.playerCharLeftLeg.rotation.x = THREE.MathUtils.lerp(this.playerCharLeftLeg.rotation.x, 0.65, delta * 14);
-        this.playerCharRightLeg.rotation.x = THREE.MathUtils.lerp(this.playerCharRightLeg.rotation.x, -0.40, delta * 14);
-      } else {
-        this.playerCharTorso.position.y = THREE.MathUtils.lerp(this.playerCharTorso.position.y, 0.85, delta * 14);
-      }
-
-      // Swimming pose
-      if (this.controls.isSwimming) {
-        this.playerCharacterModel.rotation.x = THREE.MathUtils.lerp(this.playerCharacterModel.rotation.x, 1.15, delta * 8);
-      } else {
-        this.playerCharacterModel.rotation.x = THREE.MathUtils.lerp(this.playerCharacterModel.rotation.x, 0, delta * 10);
-      }
-    } else {
-      this.playerCharacterModel.visible = false;
-      this.weaponPivot.visible = true;
-    }
+    // Ensure First-Person Viewmodel is visible
+    this.weaponPivot.visible = true;
+    this.playerCharacterModel.visible = false;
 
     this.renderer.render(this.scene, this.camera);
 

@@ -2,7 +2,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { GameEngine } from '../game/GameEngine';
 import GameHUD from './GameHUD.vue';
-import { soundManager } from '../audio/SoundManager';
 import type { PlayerState, Landmark, PlayerLoadout, BuildingId } from '../types';
 import { DEFAULT_LOADOUT } from '../types';
 
@@ -72,7 +71,6 @@ const playerState = ref<PlayerState>({
   constructionTimeTotal: 0,
   constructionRemaining: 0,
   constructingBuildingName: '',
-  perspective: 'first',
   isClimbing: false
 });
 
@@ -215,13 +213,6 @@ const onSelectBuilding = (buildingId: BuildingId) => {
   }
 };
 
-const onTogglePerspective = () => {
-  if (gameEngine) {
-    gameEngine.controls.perspective = gameEngine.controls.perspective === 'first' ? 'third' : 'first';
-    soundManager.playClick();
-  }
-};
-
 const onCanvasClick = () => {
   if (isBackpackOpen.value || isMapOpen.value) return;
   if (isPaused.value) {
@@ -339,7 +330,6 @@ onUnmounted(() => {
       @teleport="onTeleport"
       @shoot="onShoot"
       @switch-slot="onSwitchSlot"
-      @toggle-perspective="onTogglePerspective"
     />
   </div>
 </template>

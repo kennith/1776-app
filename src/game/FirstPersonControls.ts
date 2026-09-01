@@ -78,7 +78,6 @@ export class FirstPersonControls {
   public constructionTimeTotal: number = 0;
   public constructionRemaining: number = 0;
   public constructingBuildingName: string = '';
-  public perspective: 'first' | 'third' = 'first';
   public isClimbing: boolean = false;
   private climbStepTimer: number = 0;
 
@@ -266,12 +265,6 @@ export class FirstPersonControls {
     if (e.key === 'Control' || e.code === 'ControlLeft' || e.code === 'ControlRight' || e.ctrlKey) {
       this.keys['Control'] = true;
       this.keys['ControlLeft'] = true;
-    }
-
-    // Toggle Camera Perspective: First-Person <-> Third-Person with [Z]
-    if (e.code === 'KeyZ') {
-      this.perspective = this.perspective === 'first' ? 'third' : 'first';
-      soundManager.playClick();
     }
 
     const canMove = this.isLocked || this.isMapOpen || this.isBackpackOpen;
@@ -866,50 +859,13 @@ export class FirstPersonControls {
       this.isGrounded = false;
     }
 
-    // Camera Transform Positioning: First-Person vs Third-Person Over-the-Shoulder
-    const forwardVec = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
-    const rightVec = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
-
-    if (this.perspective === 'first') {
-      this.camera.position.set(
-        this.position.x,
-        this.position.y + this.headBobOffset,
-        this.position.z
-      );
-      this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
-    } else {
-      // Third-Person Over-the-Shoulder Camera
-      const camDist = 3.2;
-      const shoulderOffset = 0.65;
-      const heightOffset = 0.35;
-
-      const camDir = new THREE.Vector3(0, 0, 1)
-        .applyAxisAngle(new THREE.Vector3(1, 0, 0), this.pitch)
-        .applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
-
-      const targetCamPos = new THREE.Vector3(
-        this.position.x + rightVec.x * shoulderOffset + camDir.x * camDist,
-        this.position.y + heightOffset + camDir.y * camDist,
-        this.position.z + rightVec.z * shoulderOffset + camDir.z * camDist
-      );
-
-      // Prevent camera from clipping through terrain ground
-      const camGroundY = this.terrain.getHeightAt(targetCamPos.x, targetCamPos.z);
-      if (targetCamPos.y < camGroundY + 0.65) {
-        targetCamPos.y = camGroundY + 0.65;
-      }
-
-      this.camera.position.copy(targetCamPos);
-
-      // Point camera at forward crosshair aim target
-      const lookDist = 30.0;
-      const aimTarget = new THREE.Vector3(
-        this.position.x + forwardVec.x * lookDist,
-        this.position.y + Math.tan(-this.pitch) * lookDist,
-        this.position.z + forwardVec.z * lookDist
-      );
-      this.camera.lookAt(aimTarget);
-    }
+    // Camera Transform Positioning (Pure First-Person Perspective)
+    this.camera.position.set(
+      this.position.x,
+      this.position.y + this.headBobOffset,
+      this.position.z
+    );
+    this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
 
     let headingDegrees = THREE.MathUtils.radToDeg(-this.yaw) % 360;
     if (headingDegrees < 0) headingDegrees += 360;
@@ -951,7 +907,6 @@ export class FirstPersonControls {
       constructionTimeTotal: this.constructionTimeTotal,
       constructionRemaining: Math.round(this.constructionRemaining * 10) / 10,
       constructingBuildingName: this.constructingBuildingName,
-      perspective: this.perspective,
       isClimbing: this.isClimbing
     };
   }

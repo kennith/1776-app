@@ -100,7 +100,6 @@ export interface PlayerState {
   constructionTimeTotal: number; // total in seconds
   constructionRemaining: number; // remaining in seconds
   constructingBuildingName: string;
-  perspective: 'first' | 'third';
   isClimbing: boolean;
 }
 
