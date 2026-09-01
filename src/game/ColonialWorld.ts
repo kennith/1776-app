@@ -433,8 +433,8 @@ export class ColonialWorld {
 
       soundManager.playExplosion();
 
-      // Random 6-12 stone yield!
-      const stoneYield = Math.floor(Math.random() * 7) + 6;
+      // Random 3-7 stone yield!
+      const stoneYield = Math.floor(Math.random() * 5) + 3;
 
       return { hit: true, broken: true, remainingHp: 0, stoneYield };
     } else {

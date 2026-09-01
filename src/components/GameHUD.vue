@@ -208,7 +208,7 @@ const cardinalDirection = computed(() => {
             <div class="inv-item-icon">🪨</div>
             <div class="inv-item-info">
               <div class="inv-item-name font-cinzel">Quarry Granite Stone</div>
-              <div class="inv-item-desc font-fell">Mined from mountain boulders and shoreline rocks using the Frontier Pickaxe (6–12 stone per boulder).</div>
+              <div class="inv-item-desc font-fell">Mined from mountain boulders and shoreline rocks using the Frontier Pickaxe (3–7 stone per boulder).</div>
               <div class="inv-item-stats font-cinzel">
                 <span>PICK POWER: <strong>10 DMG</strong></span>
                 <span>BREAK: <strong>5 HITS / ROCK</strong></span>
