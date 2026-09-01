@@ -237,13 +237,8 @@ onUnmounted(() => {
           <!-- GO Action Button in Center -->
           <button class="go-action-btn font-cinzel-dec" @click.stop="onGoClicked">
             <span class="go-text">GO</span>
-            <span class="go-sub font-cinzel">ENTER 3D EXPEDITION</span>
           </button>
         </div>
-
-        <p class="click-hint font-fell">
-          Press <strong>GO</strong> to spawn in the colonial frontier (Elevation \(y = 20\))
-        </p>
 
         <!-- Loadout Button Below the GO button -->
         <div class="loadout-trigger-box">
@@ -637,7 +632,7 @@ onUnmounted(() => {
   z-index: 4;
   background: radial-gradient(circle at center, #d4af37 0%, #a67c1e 65%, #664c0f 100%);
   border: 3px solid #fff5cc;
-  padding: 18px 48px;
+  padding: 16px 52px;
   border-radius: 40px;
   color: #0d1b2a;
   cursor: pointer;
@@ -645,7 +640,7 @@ onUnmounted(() => {
     0 8px 25px rgba(0, 0, 0, 0.8),
     0 0 25px rgba(255, 245, 204, 0.8);
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   align-items: center;
   transition: all 0.25s ease;
 }
@@ -664,27 +659,12 @@ onUnmounted(() => {
   line-height: 1;
   color: #0b0f19;
   text-shadow: 0 1px 1px rgba(255, 255, 255, 0.6);
-}
-
-.go-sub {
-  font-size: 0.75rem;
-  letter-spacing: 2px;
-  font-weight: 800;
-  color: #2b1d06;
-  margin-top: 4px;
-}
-
-.click-hint {
-  margin-top: 10px;
-  font-size: 0.95rem;
-  color: var(--color-parchment);
-  opacity: 0.9;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+  margin-right: -8px; /* Offset the trailing letter-spacing to ensure absolute visual centering */
 }
 
 /* Loadout Button Below GO */
 .loadout-trigger-box {
-  margin-top: 14px;
+  margin-top: 18px;
   display: flex;
   flex-direction: column;
   align-items: center;
