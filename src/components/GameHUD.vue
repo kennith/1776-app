@@ -307,6 +307,7 @@ const cardinalDirection = computed(() => {
           <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</div>
           <div><kbd>SHIFT</kbd> Sprint</div>
           <div><kbd>CTRL</kbd> / <kbd>C</kbd> Crouch</div>
+          <div><kbd>W</kbd> / <kbd>S</kbd> Climb Ladders</div>
           <div><kbd>Z</kbd> 1st / 3rd Person View</div>
           <div><kbd>SPACE</kbd> Jump / Vault</div>
           <div><kbd>E</kbd> Backpack</div>
@@ -550,6 +551,15 @@ const cardinalDirection = computed(() => {
           <div v-if="playerState.isCrouching" class="crouch-badge parchment-border font-cinzel">
             <span class="crouch-icon">🧎</span>
             <span class="crouch-text">CROUCHED</span>
+          </div>
+
+          <!-- Ladder Climbing Status Badge -->
+          <div v-if="playerState.isClimbing" class="climbing-badge parchment-border font-cinzel">
+            <span class="climb-icon">🪜</span>
+            <div class="climb-info-col">
+              <span class="climb-text">CLIMBING LADDER</span>
+              <span class="climb-sub font-fell">[W / Space] Climb Up • [S / Ctrl] Down</span>
+            </div>
           </div>
 
           <div class="specialty-indicator parchment-border">
@@ -1901,6 +1911,43 @@ const cardinalDirection = computed(() => {
 
 .crouch-icon {
   font-size: 1.1rem;
+}
+
+/* Ladder Climbing Status Badge */
+.climbing-badge {
+  background: rgba(30, 20, 10, 0.95);
+  border: 1.5px solid var(--color-patriot-gold);
+  color: #fff1b0;
+  padding: 5px 12px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.35);
+}
+
+.climb-icon {
+  font-size: 1.2rem;
+}
+
+.climb-info-col {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  text-align: left;
+}
+
+.climb-text {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #ffd700;
+}
+
+.climb-sub {
+  font-size: 0.65rem;
+  color: #ebd7b2;
+  letter-spacing: 0.5px;
 }
 
 .active-badge {

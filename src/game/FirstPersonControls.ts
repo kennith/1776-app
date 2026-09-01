@@ -77,6 +77,8 @@ export class FirstPersonControls {
   public constructionRemaining: number = 0;
   public constructingBuildingName: string = '';
   public perspective: 'first' | 'third' = 'first';
+  public isClimbing: boolean = false;
+  private climbStepTimer: number = 0;
 
   // Key state map
   private keys: Record<string, boolean> = {};
@@ -667,8 +669,61 @@ export class FirstPersonControls {
       }
     }
 
-    // Vertical Physics: Water Swimming Buoyancy & Sinking with Control vs Terrestrial Gravity
-    if (this.isSwimming) {
+    // -------------------------------------------------------------
+    // Vertical Physics: Ladder Climbing vs Swimming vs Terrestrial Gravity
+    // -------------------------------------------------------------
+    const nearbyLadder = this.colonialWorld ? this.colonialWorld.getNearbyLadder(this.position.x, this.position.y, this.position.z) : null;
+
+    if (nearbyLadder && canMove && !this.isDead && !this.isSwimming) {
+      const wantsToClimbUp = Boolean(this.keys['KeyW'] || this.keys['Space'] || this.keys['ArrowUp']);
+      const wantsToClimbDown = Boolean(this.keys['KeyS'] || this.keys['ControlLeft'] || this.keys['ControlRight'] || this.keys['Control'] || this.keys['KeyC'] || this.keys['ArrowDown']);
+
+      if (wantsToClimbUp || wantsToClimbDown || this.isClimbing) {
+        this.isClimbing = true;
+        this.velocity.y = 0;
+        this.maxFallVelocity = 0;
+
+        if (wantsToClimbUp) {
+          this.position.y += 4.8 * dt;
+          this.climbStepTimer += dt;
+          if (this.climbStepTimer >= 0.30) {
+            soundManager.playFootstep();
+            this.climbStepTimer = 0;
+          }
+
+          // Step onto observation deck when reaching the top
+          if (this.position.y >= nearbyLadder.topY + this.eyeHeight - 0.25) {
+            const fwd = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
+            this.position.x += fwd.x * 2.2 * dt;
+            this.position.z += fwd.z * 2.2 * dt;
+          }
+        } else if (wantsToClimbDown) {
+          this.position.y -= 4.8 * dt;
+          this.climbStepTimer += dt;
+          if (this.climbStepTimer >= 0.30) {
+            soundManager.playFootstep();
+            this.climbStepTimer = 0;
+          }
+        }
+
+        // Clamp height between ground level and deck top
+        this.position.y = THREE.MathUtils.clamp(
+          this.position.y,
+          nearbyLadder.bottomY + this.eyeHeight,
+          nearbyLadder.topY + this.eyeHeight + 0.3
+        );
+      } else {
+        this.isClimbing = false;
+      }
+    } else {
+      this.isClimbing = false;
+    }
+
+    if (this.isClimbing) {
+      this.maxFallVelocity = 0;
+      this.velocity.y = 0;
+      this.isGrounded = false;
+    } else if (this.isSwimming) {
       this.maxFallVelocity = 0;
       const surfaceEyeY = waterLevel + this.eyeHeight - 0.25;
 
@@ -716,6 +771,13 @@ export class FirstPersonControls {
         const effRadius = obs.radius + 0.25;
 
         if (distSq <= effRadius * effRadius) {
+          // If watchtower, support elevated deck landing at y + 7.4
+          if (obs.id && obs.id.includes('watchtower')) {
+            const deckTopY = obs.y + 7.4;
+            if (playerFeetYCurrent >= deckTopY - 0.7 && deckTopY > groundY) {
+              groundY = deckTopY;
+            }
+          }
           const obsTopY = obs.y + obs.height;
           if (playerFeetYCurrent >= obsTopY - 0.6 && obsTopY > groundY) {
             groundY = obsTopY;
@@ -727,11 +789,11 @@ export class FirstPersonControls {
     const targetY = groundY + this.eyeHeight;
 
     // Smoothly adhere to ground height when already grounded and not jumping
-    if (this.isGrounded && !this.isSwimming && this.velocity.y <= 0.1) {
+    if (!this.isClimbing && this.isGrounded && !this.isSwimming && this.velocity.y <= 0.1) {
       this.position.y = targetY;
       this.velocity.y = 0;
       this.maxFallVelocity = 0;
-    } else if (this.position.y <= targetY) {
+    } else if (!this.isClimbing && this.position.y <= targetY) {
       this.position.y = targetY;
 
       // Fall Damage Calculation upon Landing (Impacts > 16.5 m/s)
@@ -759,7 +821,7 @@ export class FirstPersonControls {
       this.maxFallVelocity = 0;
       this.velocity.y = 0;
       this.isGrounded = true;
-    } else if (this.isSwimming) {
+    } else if (this.isSwimming || this.isClimbing) {
       this.maxFallVelocity = 0;
       this.isGrounded = false;
     } else {
@@ -849,7 +911,8 @@ export class FirstPersonControls {
       constructionTimeTotal: this.constructionTimeTotal,
       constructionRemaining: Math.round(this.constructionRemaining * 10) / 10,
       constructingBuildingName: this.constructingBuildingName,
-      perspective: this.perspective
+      perspective: this.perspective,
+      isClimbing: this.isClimbing
     };
   }
 

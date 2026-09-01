@@ -97,6 +97,7 @@ export interface PlayerState {
   constructionRemaining: number; // remaining in seconds
   constructingBuildingName: string;
   perspective: 'first' | 'third';
+  isClimbing: boolean;
 }
 
 export interface Landmark {

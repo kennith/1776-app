@@ -21,6 +21,18 @@ interface WoodChip {
   maxLife: number;
 }
 
+export interface LadderVolume {
+  id: string;
+  x: number;
+  z: number;
+  bottomY: number;
+  topY: number;
+  deckY: number;
+  radius: number;
+  ladderX: number;
+  ladderZ: number;
+}
+
 export class ColonialWorld {
   public scene: THREE.Scene;
   public terrain: TerrainGenerator;
@@ -30,6 +42,7 @@ export class ColonialWorld {
 
   // Solid Collision Obstacles & Spatial Grid for 2000x2000 world
   public obstacles: WorldObstacle[] = [];
+  public ladders: LadderVolume[] = [];
   private spatialGrid: Map<string, WorldObstacle[]> = new Map();
   private cellSize: number = 25;
 
@@ -765,15 +778,62 @@ export class ColonialWorld {
       deck.position.set(0, 7.4, 0);
       group.add(deck);
 
-      // Perimeter Deck Railings
-      const railGeomH = new THREE.BoxGeometry(4.4, 0.1, 0.1);
-      const r1 = new THREE.Mesh(railGeomH, woodMat);
-      r1.position.set(0, 8.4, -2.1);
-      group.add(r1);
+      // Perimeter Deck Railings (with ladder entry opening at the back)
+      const railGeomFront = new THREE.BoxGeometry(4.4, 0.1, 0.1);
+      const rFront = new THREE.Mesh(railGeomFront, woodMat);
+      rFront.position.set(0, 8.4, 2.1);
+      group.add(rFront);
 
-      const r2 = new THREE.Mesh(railGeomH, woodMat);
-      r2.position.set(0, 8.4, 2.1);
-      group.add(r2);
+      const railGeomSides = new THREE.BoxGeometry(0.1, 0.1, 4.4);
+      const rLeft = new THREE.Mesh(railGeomSides, woodMat);
+      rLeft.position.set(-2.1, 8.4, 0);
+      group.add(rLeft);
+
+      const rRight = new THREE.Mesh(railGeomSides, woodMat);
+      rRight.position.set(2.1, 8.4, 0);
+      group.add(rRight);
+
+      // Back Railing split to leave open doorway access for ladder
+      const backRailGeom = new THREE.BoxGeometry(1.6, 0.1, 0.1);
+      const rBackLeft = new THREE.Mesh(backRailGeom, woodMat);
+      rBackLeft.position.set(-1.3, 8.4, -2.1);
+      group.add(rBackLeft);
+
+      const rBackRight = new THREE.Mesh(backRailGeom, woodMat);
+      rBackRight.position.set(1.3, 8.4, -2.1);
+      group.add(rBackRight);
+
+      // -------------------------------------------------------------
+      // 3D CLIMBABLE TIMBER LADDER
+      // -------------------------------------------------------------
+      const ladderRailGeom = new THREE.BoxGeometry(0.08, 7.8, 0.08);
+      const ladderRailL = new THREE.Mesh(ladderRailGeom, logMat);
+      ladderRailL.position.set(-0.35, 3.9, -1.84);
+      group.add(ladderRailL);
+
+      const ladderRailR = new THREE.Mesh(ladderRailGeom, logMat);
+      ladderRailR.position.set(0.35, 3.9, -1.84);
+      group.add(ladderRailR);
+
+      // Ladder Rungs (20 evenly spaced wooden steps)
+      const rungGeom = new THREE.BoxGeometry(0.68, 0.06, 0.06);
+      for (let y = 0.35; y <= 7.6; y += 0.38) {
+        const rung = new THREE.Mesh(rungGeom, woodMat);
+        rung.position.set(0, y, -1.84);
+        group.add(rung);
+      }
+
+      // Top Safety Handles extending onto Observation Deck
+      const topHandleGeom = new THREE.CylinderGeometry(0.03, 0.03, 0.9, 8);
+      const hL = new THREE.Mesh(topHandleGeom, woodMat);
+      hL.position.set(-0.35, 8.05, -1.95);
+      hL.rotation.x = -0.3;
+      group.add(hL);
+
+      const hR = new THREE.Mesh(topHandleGeom, woodMat);
+      hR.position.set(0.35, 8.05, -1.95);
+      hR.rotation.x = -0.3;
+      group.add(hR);
 
       // Lookout Roof Canopy
       const canopyGeom = new THREE.BoxGeometry(4.8, 0.14, 4.8);
@@ -806,8 +866,50 @@ export class ColonialWorld {
     };
 
     this.addObstacle(obs);
+
+    // Register climbable ladder volume for watchtowers
+    if (type === 'watchtower') {
+      const rot = rotationY || 0;
+      // Ladder is placed at local offset (0, 0, -1.84)
+      const lx = x + (-1.84) * Math.sin(rot);
+      const lz = z + (-1.84) * Math.cos(rot);
+      this.ladders.push({
+        id: `ladder_watchtower_${Date.now()}_${Math.random()}`,
+        x,
+        z,
+        bottomY: y,
+        topY: y + 7.5,
+        deckY: y + 7.4,
+        radius: 1.8,
+        ladderX: lx,
+        ladderZ: lz
+      });
+    }
+
     soundManager.playBuildPlace();
 
     return { mesh, obstacle: obs };
+  }
+
+  /**
+   * Checks if player coordinate is near any climbable ladder volume
+   */
+  public getNearbyLadder(px: number, py: number, pz: number): LadderVolume | null {
+    for (let i = 0; i < this.ladders.length; i++) {
+      const lad = this.ladders[i];
+      const dx = px - lad.ladderX;
+      const dz = pz - lad.ladderZ;
+      const distSq = dx * dx + dz * dz;
+
+      // Distance to ladder rung face or watchtower frame base
+      const tdx = px - lad.x;
+      const tdz = pz - lad.z;
+      const tDistSq = tdx * tdx + tdz * tdz;
+
+      if ((distSq <= lad.radius * lad.radius || tDistSq <= 2.4 * 2.4) && py >= lad.bottomY - 0.5 && py <= lad.topY + 2.5) {
+        return lad;
+      }
+    }
+    return null;
   }
 }

@@ -69,7 +69,8 @@ const playerState = ref<PlayerState>({
   constructionTimeTotal: 0,
   constructionRemaining: 0,
   constructingBuildingName: '',
-  perspective: 'first'
+  perspective: 'first',
+  isClimbing: false
 });
 
 const onPointerLockChange = () => {
