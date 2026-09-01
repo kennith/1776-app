@@ -285,8 +285,8 @@ const onBackClicked = () => {
                 </div>
                 <div class="stat-row">
                   <span class="stat-lbl">DAMAGE:</span>
-                  <div class="bar-track"><div class="bar-fill damage" style="width: 38%;"></div></div>
-                  <span class="stat-val">38 DMG</span>
+                  <div class="bar-track"><div class="bar-fill damage" style="width: 10%;"></div></div>
+                  <span class="stat-val">5 DMG</span>
                 </div>
                 <div class="stat-row">
                   <span class="stat-lbl">DIG SPEED:</span>

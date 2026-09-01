@@ -267,18 +267,18 @@ export const TOOLS: Record<ToolId, WeaponInfo> = {
   },
   shovel: {
     id: 'shovel',
-    name: 'Entrenching Shovels',
+    name: 'Shovels',
     category: 'tool',
-    type: 'Steel Spadework Shovel',
-    damage: 38,
+    type: 'Forged Steel Spadework Shovel',
+    damage: 5,
     fireRate: 1.2,
     reloadTime: 0,
     isFirearm: false,
     range: 4,
     accuracy: 85,
-    description: 'Digs 3 feet of dirt per 4 swings into the earth.',
-    icon: '⛏️',
-    lore: 'Pivotal during the Battle of Bunker Hill for constructing overnight earthen redoubts.'
+    description: 'Digs 3 feet of dirt per 4 swings into the earth. Deals 5 melee damage.',
+    icon: '🪏',
+    lore: 'Pivotal during the Battle of Bunker Hill for digging earthworks and overnight defensive redoubts.'
   },
   med_kit: {
     id: 'med_kit',

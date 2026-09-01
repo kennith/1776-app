@@ -907,26 +907,26 @@ export class GameEngine {
   private buildShovelModel(parent: THREE.Group) {
     const shovelAssembly = new THREE.Group();
 
-    // 1. Turned Ash Wood Shaft (bottom at 0, extends upwards along handleLength)
-    const handleLength = 0.72;
-    const handleGeom = new THREE.CylinderGeometry(0.016, 0.020, handleLength, 10);
+    // 1. Turned Hickory Wood Shaft (sturdy cylindrical tool handle)
+    const handleLength = 0.76;
+    const handleGeom = new THREE.CylinderGeometry(0.018, 0.022, handleLength, 12);
     handleGeom.translate(0, handleLength / 2, 0);
     const handleMat = new THREE.MeshStandardMaterial({
-      color: 0x8b5a2b,
-      roughness: 0.75,
+      color: 0x96613d,
+      roughness: 0.70,
       metalness: 0.05
     });
     const handle = new THREE.Mesh(handleGeom, handleMat);
     shovelAssembly.add(handle);
 
-    // 2. D-Grip Handle at bottom (held in player's grip hand)
+    // 2. Heavy-Duty Metal D-Grip Handle at bottom
     const ironMat = new THREE.MeshStandardMaterial({
-      color: 0x2d3436,
-      metalness: 0.88,
-      roughness: 0.35
+      color: 0x2c3e50,
+      metalness: 0.85,
+      roughness: 0.40
     });
     const dGripBracket = new THREE.Mesh(
-      new THREE.TorusGeometry(0.045, 0.009, 8, 16, Math.PI),
+      new THREE.TorusGeometry(0.048, 0.010, 8, 16, Math.PI),
       ironMat
     );
     dGripBracket.position.set(0, 0.02, 0);
@@ -934,70 +934,76 @@ export class GameEngine {
     shovelAssembly.add(dGripBracket);
 
     const dGripWood = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.014, 0.014, 0.09, 8),
+      new THREE.CylinderGeometry(0.015, 0.015, 0.095, 10),
       handleMat
     );
     dGripWood.rotation.z = Math.PI / 2;
-    dGripWood.position.set(0, -0.025, 0);
+    dGripWood.position.set(0, -0.028, 0);
     shovelAssembly.add(dGripWood);
 
-    // 3. Forged Steel Spade Head Group (mounted at handle top, pointing forward towards crosshair)
+    // 3. Forged Steel Shovel Spade Head Group (mounted at shaft top)
     const headGroup = new THREE.Group();
-    headGroup.position.set(0, handleLength - 0.04, 0);
+    headGroup.position.set(0, handleLength - 0.03, 0);
 
-    // Socket Collar & Straps wrapping the wood shaft
-    const socketGeom = new THREE.CylinderGeometry(0.024, 0.028, 0.12, 10);
+    // Socket Collar & Straps wrapping the wooden shaft
+    const socketGeom = new THREE.CylinderGeometry(0.026, 0.030, 0.14, 12);
     const socket = new THREE.Mesh(socketGeom, ironMat);
     socket.position.set(0, -0.02, 0);
     headGroup.add(socket);
 
-    // Rivet pins on socket
-    const rivetMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.2 });
+    // Brass rivet pins securing socket to wood
+    const rivetMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.92, roughness: 0.22 });
     for (let i = 0; i < 3; i++) {
       const rivet = new THREE.Mesh(new THREE.SphereGeometry(0.005, 6, 6), rivetMat);
-      rivet.position.set(0, -0.05 + i * 0.03, 0.025);
+      rivet.position.set(0, -0.05 + i * 0.03, 0.027);
       headGroup.add(rivet);
     }
 
-    // Curved Spade Scoop Plate (Angled forward in -Z)
+    // Curved Shovel Scoop Blade (tilted into forward digging angle)
     const spadeBladeGroup = new THREE.Group();
-    spadeBladeGroup.position.set(0, 0.08, -0.05);
-    spadeBladeGroup.rotation.x = -0.32; // Angled forward scoop
+    spadeBladeGroup.position.set(0, 0.10, -0.055);
+    spadeBladeGroup.rotation.x = -0.36; // Iconic forward scoop dish angle
 
-    // Main Dish Blade Body
-    const scoopGeom = new THREE.BoxGeometry(0.20, 0.22, 0.018);
+    // Main Curved Dished Scoop Pan Body
+    const scoopGeom = new THREE.BoxGeometry(0.24, 0.26, 0.022);
     const scoop = new THREE.Mesh(scoopGeom, ironMat);
     spadeBladeGroup.add(scoop);
 
-    // Stepped Boot-Treads / Flanges on top shoulders (left and right)
-    const flangeGeom = new THREE.BoxGeometry(0.08, 0.022, 0.04);
-    const flangeL = new THREE.Mesh(flangeGeom, ironMat);
-    flangeL.position.set(-0.065, 0.11, 0.015);
-    spadeBladeGroup.add(flangeL);
+    // Central Reinforcing Ridge (Frog Spine)
+    const spineGeom = new THREE.CylinderGeometry(0.014, 0.020, 0.24, 8);
+    const spine = new THREE.Mesh(spineGeom, ironMat);
+    spine.position.set(0, 0.02, 0.012);
+    spadeBladeGroup.add(spine);
 
-    const flangeR = new THREE.Mesh(flangeGeom, ironMat);
-    flangeR.position.set(0.065, 0.11, 0.015);
-    spadeBladeGroup.add(flangeR);
+    // Left and Right Stepped Foot Treads (folded metal shoulder steps for digging into earth)
+    const treadGeom = new THREE.BoxGeometry(0.10, 0.024, 0.045);
+    const treadL = new THREE.Mesh(treadGeom, ironMat);
+    treadL.position.set(-0.08, 0.13, 0.018);
+    spadeBladeGroup.add(treadL);
 
-    // Sharp Pointed Leading Digging Edge (Silver polished carbon steel)
+    const treadR = new THREE.Mesh(treadGeom, ironMat);
+    treadR.position.set(0.08, 0.13, 0.018);
+    spadeBladeGroup.add(treadR);
+
+    // Tapered Sharp Spade Digging Point & Leading Lip (Polished Tempered Carbon Steel)
     const sharpEdgeMat = new THREE.MeshStandardMaterial({
-      color: 0xe0e6ed,
-      metalness: 0.98,
-      roughness: 0.15
+      color: 0xecf0f1,
+      metalness: 0.96,
+      roughness: 0.18
     });
 
-    const edgeGeom = new THREE.ConeGeometry(0.14, 0.10, 4);
+    const edgeGeom = new THREE.ConeGeometry(0.17, 0.13, 4);
     edgeGeom.rotateX(Math.PI);
     edgeGeom.rotateZ(Math.PI / 4);
     const edge = new THREE.Mesh(edgeGeom, sharpEdgeMat);
-    edge.position.set(0, -0.14, 0);
+    edge.position.set(0, -0.165, 0);
     edge.scale.set(1.4, 1.0, 0.18);
     spadeBladeGroup.add(edge);
 
     headGroup.add(spadeBladeGroup);
     shovelAssembly.add(headGroup);
 
-    // 4. Poised Forward Digging Stance aimed directly at crosshair
+    // 4. Natural First-Person Ready Digging Stance (angled forward into the ground)
     shovelAssembly.position.set(0.06, -0.22, -0.36);
     shovelAssembly.rotation.set(-0.62, 0.0, -0.06);
 
