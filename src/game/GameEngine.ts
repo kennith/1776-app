@@ -1124,6 +1124,9 @@ export class GameEngine {
     parent.add(shovelAssembly);
   }
 
+  /**
+   * Builds an authentic Frontier Pickaxe with a heavily downward-curved forged steel head ("sad face" arc curve)
+   */
   private buildPickaxeModel(parent: THREE.Group) {
     const pickAssembly = new THREE.Group();
 
@@ -1139,9 +1142,17 @@ export class GameEngine {
     const handle = new THREE.Mesh(handleGeom, handleMat);
     pickAssembly.add(handle);
 
-    // 2. Heavy Forged Steel Double-Ended Pick Head
+    // Leather lower grip wrap
+    const gripLength = 0.22;
+    const gripGeom = new THREE.CylinderGeometry(0.024, 0.024, gripLength, 10);
+    gripGeom.translate(0, gripLength / 2 + 0.02, 0);
+    const gripMat = new THREE.MeshStandardMaterial({ color: 0x2b1d0c, roughness: 0.95 });
+    const grip = new THREE.Mesh(gripGeom, gripMat);
+    pickAssembly.add(grip);
+
+    // 2. Heavy Forged Steel Double-Ended Pick Head with pronounced Downward "Sad Face" Arc Curve (⌒)
     const headGroup = new THREE.Group();
-    headGroup.position.set(0, handleLength - 0.03, 0);
+    headGroup.position.set(0, handleLength - 0.025, 0);
 
     const ironMat = new THREE.MeshStandardMaterial({
       color: 0x2d3436,
@@ -1155,56 +1166,83 @@ export class GameEngine {
       roughness: 0.12
     });
 
-    // Central Iron Eye Collar Socket (anchoring handle)
-    const socketGeom = new THREE.BoxGeometry(0.046, 0.075, 0.058);
+    // Central Iron Eye Collar Socket (at top apex of the arc)
+    const socketGeom = new THREE.BoxGeometry(0.046, 0.075, 0.062);
     const socket = new THREE.Mesh(socketGeom, ironMat);
     headGroup.add(socket);
 
-    // Top Retention Wedge
-    const wedge = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.012, 0.036), steelTipMat);
-    wedge.position.set(0, 0.042, 0);
+    // Top Retention Iron Wedge
+    const wedge = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.016, 0.038), steelTipMat);
+    wedge.position.set(0, 0.044, 0);
     headGroup.add(wedge);
 
-    // Front Pointed Pick Spike (curves forward into -Z, tapered sharp pyramid tip)
-    const spikeGroup = new THREE.Group();
-    spikeGroup.position.set(0, -0.005, -0.03);
+    // -------------------------------------------------------------
+    // FRONT FORGED SPIKE (Curves aggressively downward like a frown/sad face in -Z)
+    // -------------------------------------------------------------
+    const frontArm = new THREE.Group();
+    frontArm.position.set(0, 0.01, -0.025);
 
-    // Spike base shank
-    const shankGeom = new THREE.BoxGeometry(0.034, 0.038, 0.14);
-    shankGeom.translate(0, -0.015, -0.07);
-    const shank = new THREE.Mesh(shankGeom, ironMat);
-    spikeGroup.add(shank);
+    // Segment 1 (initial downward pitch -18°)
+    const f1Geom = new THREE.BoxGeometry(0.034, 0.038, 0.11);
+    f1Geom.translate(0, 0, -0.055);
+    const f1 = new THREE.Mesh(f1Geom, ironMat);
+    f1.rotation.x = -0.32; // Pitch down
+    frontArm.add(f1);
 
-    // Tapered diamond pick tip (pointed forward in -Z)
-    const tipGeom = new THREE.ConeGeometry(0.038, 0.16, 4);
+    // Segment 2 (mid curve pitching down -38°)
+    const f2Geom = new THREE.BoxGeometry(0.028, 0.032, 0.11);
+    f2Geom.translate(0, 0, -0.055);
+    const f2 = new THREE.Mesh(f2Geom, ironMat);
+    f2.position.set(0, -0.034, -0.10);
+    f2.rotation.x = -0.66; // Steeper downward curve
+    frontArm.add(f2);
+
+    // Segment 3: Sharp diamond pick tip plunging downwards
+    const tipGeom = new THREE.ConeGeometry(0.032, 0.13, 4);
     tipGeom.rotateX(-Math.PI / 2);
     tipGeom.rotateZ(Math.PI / 4);
-    tipGeom.translate(0, -0.04, -0.22);
+    tipGeom.translate(0, 0, -0.065);
     const pickTip = new THREE.Mesh(tipGeom, steelTipMat);
-    spikeGroup.add(pickTip);
+    pickTip.position.set(0, -0.105, -0.18);
+    pickTip.rotation.x = -0.92; // Deep downward sad-face curve
+    frontArm.add(pickTip);
 
-    headGroup.add(spikeGroup);
+    headGroup.add(frontArm);
 
-    // Rear Mattock / Chisel Adze Blade (extends into +Z)
-    const adzeGroup = new THREE.Group();
-    adzeGroup.position.set(0, 0, 0.03);
+    // -------------------------------------------------------------
+    // REAR ADZE / CHISEL HORN (Curves aggressively downward in +Z)
+    // -------------------------------------------------------------
+    const rearArm = new THREE.Group();
+    rearArm.position.set(0, 0.01, 0.025);
 
-    const adzeShankGeom = new THREE.BoxGeometry(0.032, 0.036, 0.11);
-    adzeShankGeom.translate(0, -0.008, 0.055);
-    const adzeShank = new THREE.Mesh(adzeShankGeom, ironMat);
-    adzeGroup.add(adzeShank);
+    // Segment 1 (pitching downward into +Z)
+    const r1Geom = new THREE.BoxGeometry(0.034, 0.038, 0.10);
+    r1Geom.translate(0, 0, 0.05);
+    const r1 = new THREE.Mesh(r1Geom, ironMat);
+    r1.rotation.x = 0.32; // Pitch down backwards
+    rearArm.add(r1);
 
-    // Broad chisel digging/prying bevel blade
-    const chiselGeom = new THREE.BoxGeometry(0.065, 0.008, 0.06);
-    chiselGeom.translate(0, -0.014, 0.135);
+    // Segment 2 (mid curve pitching down backwards)
+    const r2Geom = new THREE.BoxGeometry(0.030, 0.032, 0.09);
+    r2Geom.translate(0, 0, 0.045);
+    const r2 = new THREE.Mesh(r2Geom, ironMat);
+    r2.position.set(0, -0.031, 0.095);
+    r2.rotation.x = 0.62; // Steeper downward curve
+    rearArm.add(r2);
+
+    // Segment 3: Flared broad cutting chisel adze blade angled downward
+    const chiselGeom = new THREE.BoxGeometry(0.068, 0.010, 0.07);
+    chiselGeom.translate(0, 0, 0.035);
     const chisel = new THREE.Mesh(chiselGeom, steelTipMat);
-    adzeGroup.add(chisel);
+    chisel.position.set(0, -0.082, 0.165);
+    chisel.rotation.x = 0.88; // Deep downward slope
+    rearArm.add(chisel);
 
-    headGroup.add(adzeGroup);
+    headGroup.add(rearArm);
 
     pickAssembly.add(headGroup);
 
-    // 3. Poised Forward Mining Stance
+    // 3. Natural First-Person Mining Stance
     pickAssembly.position.set(0.06, -0.22, -0.38);
     pickAssembly.rotation.set(-0.62, 0.0, -0.06);
 
