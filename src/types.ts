@@ -410,7 +410,7 @@ export const DEFAULT_LOADOUT: PlayerLoadout = {
 // 1776 Frontier Building & Construction System
 // ==========================================
 
-export type BuildingId = 'campfire' | 'palisade' | 'stone_wall' | 'stone_furnace' | 'stone_well' | 'bridge' | 'cabin' | 'watchtower';
+export type BuildingId = 'campfire' | 'palisade' | 'stone_wall' | 'bridge' | 'cabin' | 'watchtower';
 
 export interface BuildingBlueprint {
   id: BuildingId;
@@ -469,34 +469,6 @@ export const BUILDING_BLUEPRINTS: Record<BuildingId, BuildingBlueprint> = {
     height: 2.8,
     depth: 1.2,
     health: 400
-  },
-  stone_furnace: {
-    id: 'stone_furnace',
-    name: 'Colonial Field Forge',
-    category: 'utility',
-    woodCost: 4,
-    stoneCost: 10,
-    buildTime: 3.0,
-    description: 'Masonry field smelting hearth and furnace with chimney stack & glowing coal fire.',
-    icon: '🌋',
-    width: 2.4,
-    height: 3.2,
-    depth: 2.4,
-    health: 260
-  },
-  stone_well: {
-    id: 'stone_well',
-    name: 'Frontier Stone Well',
-    category: 'utility',
-    woodCost: 6,
-    stoneCost: 8,
-    buildTime: 2.8,
-    description: 'Circular granite well with timber gabled roof and rope winch bucket.',
-    icon: '🪣',
-    width: 2.2,
-    height: 2.8,
-    depth: 2.2,
-    health: 220
   },
   bridge: {
     id: 'bridge',

@@ -464,7 +464,7 @@ watch(activeSlotKey, (newKey, oldKey) => {
             <div class="build-help-hints font-fell">
               <span><strong>[X]</strong> Begin Construction ({{ BUILDING_BLUEPRINTS[playerState.selectedBuilding]?.buildTime ?? 2.5 }}s)</span> • 
               <span><strong>[R]</strong> Rotate 45°</span> • 
-              <span><strong>[1-8 / Scroll]</strong> Select Blueprint</span> • 
+              <span><strong>[1-6 / Scroll]</strong> Select Blueprint</span> • 
               <button class="exit-build-btn font-cinzel" @click="emit('toggle-building-mode')">✕ [ESC / B] EXIT</button>
             </div>
           </div>
