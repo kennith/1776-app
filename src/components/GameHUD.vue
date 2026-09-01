@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type { PlayerState, Landmark, PlayerLoadout, BuildingId } from '../types';
 import { MAIN_WEAPONS, SUB_WEAPONS, TOOLS, SPECIALTIES, BUILDING_BLUEPRINTS } from '../types';
 import { soundManager } from '../audio/SoundManager';
@@ -52,6 +52,28 @@ const cardinalDirection = computed(() => {
   if (h >= 202.5 && h < 247.5) return 'SW';
   if (h >= 247.5 && h < 292.5) return 'W';
   return 'NW';
+});
+
+// Weapon / Tool Hotbar Switching Flash Effect (Flashes only the new weapon/tool you GO TO)
+const activeSlotKey = computed(() => {
+  if (props.playerState.isBuildingMode) return 'build';
+  if (props.playerState.activeSlot === 'tool') {
+    return `tool_${props.playerState.selectedToolIndex ?? 0}`;
+  }
+  return props.playerState.activeSlot;
+});
+
+const flashingSlotKey = ref<string | null>(null);
+let flashTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(activeSlotKey, (newKey, oldKey) => {
+  if (newKey && newKey !== oldKey) {
+    flashingSlotKey.value = newKey;
+    if (flashTimer) clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => {
+      flashingSlotKey.value = null;
+    }, 450);
+  }
 });
 </script>
 
@@ -591,6 +613,7 @@ const cardinalDirection = computed(() => {
             class="hotbar-slot"
             :class="{
               active: playerState.activeSlot === 'main' && !playerState.isBuildingMode,
+              'slot-flash': flashingSlotKey === 'main',
               'slot-reloading': playerState.slotReloads?.main?.isReloading
             }"
             @click="emit('switch-slot', 'main')"
@@ -612,6 +635,7 @@ const cardinalDirection = computed(() => {
             class="hotbar-slot"
             :class="{
               active: playerState.activeSlot === 'sub' && !playerState.isBuildingMode,
+              'slot-flash': flashingSlotKey === 'sub',
               'slot-reloading': playerState.slotReloads?.sub?.isReloading
             }"
             @click="emit('switch-slot', 'sub')"
@@ -636,6 +660,7 @@ const cardinalDirection = computed(() => {
             class="hotbar-slot"
             :class="{
               active: playerState.activeSlot === 'tool' && playerState.selectedToolIndex === tIdx && !playerState.isBuildingMode,
+              'slot-flash': flashingSlotKey === `tool_${tIdx}`,
               'slot-reloading': playerState.slotReloads?.tool?.isReloading && playerState.selectedToolIndex === tIdx
             }"
             @click="emit('switch-slot', 'tool', tIdx)"
@@ -657,7 +682,10 @@ const cardinalDirection = computed(() => {
           <!-- Build Mode Quick Hotbar Button -->
           <div
             class="hotbar-slot build-hotbar-slot"
-            :class="{ active: playerState.isBuildingMode }"
+            :class="{
+              active: playerState.isBuildingMode,
+              'slot-flash': flashingSlotKey === 'build'
+            }"
             @click="emit('toggle-building-mode')"
           >
             <div class="slot-num">B</div>
@@ -1698,7 +1726,8 @@ const cardinalDirection = computed(() => {
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  /* Instant clean transition for unselected/left slot (no lingering flash) */
+  transition: transform 0.15s ease, background-color 0.15s ease;
   overflow: hidden;
 }
 
@@ -1711,6 +1740,31 @@ const cardinalDirection = computed(() => {
   background: radial-gradient(circle at center, #2c3e50 0%, #0d1b2a 100%);
   border-color: var(--color-patriot-gold);
   box-shadow: 0 0 15px rgba(212, 175, 55, 0.6);
+}
+
+/* Flash animation applied exclusively to the newly equipped weapon/tool slot you go TO */
+.hotbar-slot.slot-flash {
+  animation: equipSlotFlash 0.45s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+  z-index: 10;
+}
+
+@keyframes equipSlotFlash {
+  0% {
+    transform: scale(1.12) translateY(-4px);
+    box-shadow: 0 0 35px rgba(255, 220, 50, 1.0), 0 0 15px rgba(255, 255, 255, 0.9), inset 0 0 20px rgba(255, 220, 50, 0.8);
+    border-color: #ffffff;
+    background: radial-gradient(circle at center, #3d5a80 0%, #1d2d44 100%);
+  }
+  50% {
+    transform: scale(1.06) translateY(-2px);
+    box-shadow: 0 0 24px rgba(255, 215, 0, 0.85), inset 0 0 12px rgba(255, 215, 0, 0.5);
+    border-color: var(--color-patriot-gold);
+  }
+  100% {
+    transform: scale(1.0) translateY(0);
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.6);
+    border-color: var(--color-patriot-gold);
+  }
 }
 
 .slot-num {
