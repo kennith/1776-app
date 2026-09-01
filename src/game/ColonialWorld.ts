@@ -499,9 +499,9 @@ export class ColonialWorld {
     const rockMat = new THREE.MeshStandardMaterial({ color: 0x5a554c, roughness: 0.92 });
     const mossyRockMat = new THREE.MeshStandardMaterial({ color: 0x485240, roughness: 0.95 });
 
-    // 2,500 trees and rocks distributed across 2000x2000 map (spread radius = 820m)
-    const count = 2500;
-    const spread = 820;
+    // 5,000 trees, boulders, and rocks distributed across 2000x2000 map (2X DENSITY)
+    const count = 5000;
+    const spread = 840;
 
     for (let i = 0; i < count; i++) {
       const x = (Math.random() - 0.5) * spread * 2;
@@ -613,8 +613,8 @@ export class ColonialWorld {
             despawnTimer: -1
           });
         }
-      } else if (y >= 45) {
-        // Mountain Granite Rocks
+      } else if (y >= 40) {
+        // Mountain Granite Rocks & Boulders (2X Density)
         const rScale = 0.8 + Math.random() * 2.0;
         const geom = Math.random() < 0.5 ? rockGeom1 : rockGeom2;
         const mat = Math.random() < 0.4 ? mossyRockMat : rockMat;
@@ -643,8 +643,8 @@ export class ColonialWorld {
         };
         this.addObstacle(rockObs);
         this.rockMap.set(rockId, { obstacle: rockObs, mesh: rock });
-      } else if (y > 10.0 && y <= 13.0 && Math.random() < 0.2) {
-        // Shoreline stones along coastal and river beaches
+      } else if (y > 10.0 && y <= 13.5 && Math.random() < 0.45) {
+        // Shoreline stones along coastal and river beaches (2X Density)
         const rock = new THREE.Mesh(rockGeom1, rockMat);
         const rScale = 0.6 + Math.random() * 0.8;
         const stoneH = rScale * 0.5;
