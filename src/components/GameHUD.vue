@@ -192,7 +192,7 @@ const cardinalDirection = computed(() => {
             <div class="inv-item-icon">🪵</div>
             <div class="inv-item-info">
               <div class="inv-item-name font-cinzel">Pine & Oak Timber</div>
-              <div class="inv-item-desc font-fell">Harvested from woodland trees using the Woodsman Felling Axe (9–14 timber per felled tree).</div>
+              <div class="inv-item-desc font-fell">Harvested from woodland trees using the Axe (9–14 timber per felled tree).</div>
               <div class="inv-item-stats font-cinzel">
                 <span>AXE POWER: <strong>15 DMG</strong></span>
                 <span>CHOP: <strong>3 SWINGS / TREE</strong></span>

@@ -255,7 +255,7 @@ export const SUB_WEAPONS: Record<SubWeaponId, WeaponInfo> = {
 export const TOOLS: Record<ToolId, WeaponInfo> = {
   axe: {
     id: 'axe',
-    name: 'Woodsman Felling Axes',
+    name: 'Axe',
     category: 'tool',
     type: 'Heavy Forged Tomahawk/Axe',
     damage: 15,

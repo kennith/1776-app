@@ -573,11 +573,24 @@ export class FirstPersonControls {
     const isMoving = canMove && !this.isDead && moveDir.lengthSq() > 0.001;
     const wantsToRun = canMove && !this.isDead && Boolean(this.keys['ShiftLeft'] || this.keys['ShiftRight']);
 
-    // Sprint Energy & Exhaustion System
+    // Uphill Detection for Sprint Stamina Efficiency (Drains 30% slower when ascending hills)
+    let isUphill = false;
+    if (isMoving && !this.isSwimming) {
+      const normDir = moveDir.clone().normalize();
+      const probeDist = 2.0;
+      const curY = this.terrain.getHeightAt(this.position.x, this.position.z);
+      const nextY = this.terrain.getHeightAt(this.position.x + normDir.x * probeDist, this.position.z + normDir.z * probeDist);
+      if (nextY - curY > 0.08) {
+        isUphill = true;
+      }
+    }
+
+    // Sprint Energy & Exhaustion System (Energy decreases 30% slower when sprinting up a hill)
     let isRunning = false;
     if (wantsToRun && isMoving && this.stamina > 0 && !this.isExhausted) {
       isRunning = true;
-      this.stamina = Math.max(0, this.stamina - this.staminaDrainRate * dt);
+      const uphillStaminaDrainMult = isUphill ? 0.70 : 1.0; // 30% slower energy drain up a hill
+      this.stamina = Math.max(0, this.stamina - this.staminaDrainRate * uphillStaminaDrainMult * dt);
       if (this.stamina <= 0) {
         this.isExhausted = true;
       }
