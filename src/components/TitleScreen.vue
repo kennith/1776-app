@@ -222,11 +222,38 @@ onUnmounted(() => {
             <div class="oval-stripes">
               <div v-for="i in 13" :key="i" class="oval-stripe" :class="i % 2 === 1 ? 'red' : 'white'"></div>
             </div>
-            <!-- Blue Canton with 13 Stars in Oval -->
+            <!-- Blue Canton with Constellation of Stars -->
             <div class="oval-canton">
-              <div class="star-circle">
-                <span v-for="s in 13" :key="s" class="oval-star" :style="`--star-idx: ${s}`">★</span>
+              <div class="canton-stars-field">
+                <span
+                  v-for="s in 18"
+                  :key="`c_${s}`"
+                  class="canton-star-point"
+                  :style="{ animationDelay: `${(s * 0.15)}s` }"
+                >★</span>
               </div>
+            </div>
+
+            <!-- Surrounding 13-Star Betsy Ross Halo Ring explicitly orbiting around the GO button -->
+            <div class="star-halo-ring">
+              <span
+                v-for="s in 13"
+                :key="`h_${s}`"
+                class="halo-star"
+                :style="{
+                  left: `${50 + 44 * Math.cos(((s - 1) / 13) * 2 * Math.PI)}%`,
+                  top: `${50 + 40 * Math.sin(((s - 1) / 13) * 2 * Math.PI)}%`,
+                  animationDelay: `${s * 0.18}s`
+                }"
+              >★</span>
+            </div>
+
+            <!-- Left & Right Flanking Stars -->
+            <div class="oval-side-stars left-stars">
+              <span v-for="i in 3" :key="`sl_${i}`" class="side-star">★</span>
+            </div>
+            <div class="oval-side-stars right-stars">
+              <span v-for="i in 3" :key="`sr_${i}`" class="side-star">★</span>
             </div>
           </div>
 
@@ -574,35 +601,81 @@ onUnmounted(() => {
   position: absolute;
   top: 0;
   left: 0;
-  width: 46%;
-  height: 56%;
-  background: #1D2A44;
+  width: 50%;
+  height: 58%;
+  background: #14223d;
   display: flex;
   justify-content: center;
   align-items: center;
-  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+  box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  padding: 6px 10px;
 }
 
-/* 13 Stars in Betsy Ross Circle inside the canton */
-.star-circle {
-  position: relative;
-  width: 70px;
-  height: 70px;
+.canton-stars-field {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  align-items: center;
+  gap: 4px 8px;
+  width: 100%;
+  height: 100%;
 }
 
-.oval-star {
-  position: absolute;
-  left: 50%;
-  top: 50%;
+.canton-star-point {
   font-size: 11px;
-  color: #FFFFFF;
-  transform: 
-    translate(-50%, -50%)
-    rotate(calc(var(--star-idx) * 27.69deg))
-    translateY(-26px);
-  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.8));
+  color: #ffffff;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.9));
+  animation: starShimmer 2.5s ease-in-out infinite alternate;
+}
+
+/* 13-Star Betsy Ross Halo Ring explicitly orbiting around the GO button */
+.star-halo-ring {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.halo-star {
+  position: absolute;
+  font-size: 15px;
+  color: #ffd700;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 0 6px rgba(255, 215, 0, 1.0)) drop-shadow(0 0 12px rgba(255, 215, 0, 0.6));
+  animation: starHaloPulse 2.8s ease-in-out infinite alternate;
+}
+
+@keyframes starHaloPulse {
+  0% { transform: translate(-50%, -50%) scale(0.85); filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.7)); }
+  100% { transform: translate(-50%, -50%) scale(1.22); filter: drop-shadow(0 0 8px rgba(255, 235, 100, 1.0)) drop-shadow(0 0 16px rgba(255, 215, 0, 0.9)); }
+}
+
+/* Side Star Flanks (Left and Right of Oval) */
+.oval-side-stars {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.oval-side-stars.left-stars {
+  left: 20px;
+}
+
+.oval-side-stars.right-stars {
+  right: 20px;
+}
+
+.side-star {
+  font-size: 14px;
+  color: #fff1b0;
+  filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.85));
   animation: starShimmer 3s ease-in-out infinite alternate;
-  animation-delay: calc(var(--star-idx) * 0.15s);
 }
 
 /* Gold Rim & Gloss */
