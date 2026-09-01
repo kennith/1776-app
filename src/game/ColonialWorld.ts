@@ -13,6 +13,12 @@ interface TreeData {
   despawnTimer: number;
 }
 
+interface RockData {
+  obstacle: WorldObstacle;
+  mesh: THREE.Mesh;
+  isBroken?: boolean;
+}
+
 interface WoodChip {
   mesh: THREE.Mesh;
   vel: THREE.Vector3;
@@ -48,11 +54,17 @@ export class ColonialWorld {
 
   // Tree Health & Felling System (45 HP per tree, broken in 3 axe chops of 15 damage)
   public treeMap: Map<string, TreeData> = new Map();
+  // Rock Mining System (50 HP per boulder, broken in 5 pickaxe hits of 10 damage)
+  public rockMap: Map<string, RockData> = new Map();
   private woodChips: WoodChip[] = [];
   private woodChipGeom: THREE.BoxGeometry = new THREE.BoxGeometry(0.08, 0.04, 0.15);
   private woodChipMat: THREE.MeshStandardMaterial = new THREE.MeshStandardMaterial({
     color: 0x8d5b36,
     roughness: 0.85
+  });
+  private stoneChipMat: THREE.MeshStandardMaterial = new THREE.MeshStandardMaterial({
+    color: 0x7f8c8d,
+    roughness: 0.90
   });
 
   constructor(scene: THREE.Scene, terrain: TerrainGenerator) {
@@ -240,6 +252,116 @@ export class ColonialWorld {
     }
   }
 
+  /**
+   * Spawns stone / rock chip particle burst on pickaxe impact
+   */
+  public createStoneChips(x: number, y: number, z: number, count: number = 15) {
+    for (let i = 0; i < count; i++) {
+      const chip = new THREE.Mesh(this.woodChipGeom, this.stoneChipMat);
+      chip.position.set(
+        x + (Math.random() - 0.5) * 0.4,
+        y + (Math.random() - 0.5) * 0.5,
+        z + (Math.random() - 0.5) * 0.4
+      );
+      this.scene.add(chip);
+
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 2.0 + Math.random() * 4.0;
+      const vel = new THREE.Vector3(
+        Math.cos(angle) * speed,
+        2.0 + Math.random() * 3.5,
+        Math.sin(angle) * speed
+      );
+
+      const rotSpeed = new THREE.Vector3(
+        (Math.random() - 0.5) * 18,
+        (Math.random() - 0.5) * 18,
+        (Math.random() - 0.5) * 18
+      );
+
+      this.woodChips.push({
+        mesh: chip,
+        vel,
+        rotSpeed,
+        life: 0,
+        maxLife: 1.0 + Math.random() * 0.5
+      });
+    }
+  }
+
+  /**
+   * Searches for a rock obstacle directly in the player's reach and crosshair
+   */
+  public findRockInReach(origin: THREE.Vector3, direction: THREE.Vector3, reach: number = 4.8): WorldObstacle | null {
+    const nearby = this.getObstaclesNear(origin.x, origin.z, reach + 3);
+    let bestRock: WorldObstacle | null = null;
+    let closestDist = Infinity;
+
+    for (let i = 0; i < nearby.length; i++) {
+      const obs = nearby[i];
+      if (obs.type !== 'rock' || obs.isFelled) continue;
+
+      const toRockX = obs.x - origin.x;
+      const toRockZ = obs.z - origin.z;
+      const dist = Math.hypot(toRockX, toRockZ);
+
+      if (dist > reach + obs.radius) continue;
+
+      // Check if rock is in front of the player
+      const normToRockX = toRockX / (dist || 1);
+      const normToRockZ = toRockZ / (dist || 1);
+      const dot = normToRockX * direction.x + normToRockZ * direction.z;
+
+      if (dot > 0.25 && dist < closestDist) {
+        closestDist = dist;
+        bestRock = obs;
+      }
+    }
+
+    return bestRock;
+  }
+
+  /**
+   * Hits a rock for 10 damage (5 hits shatter the 50 HP boulder)
+   */
+  public hitRock(rockId: string, damage: number = 10, _hitDir?: THREE.Vector3): { hit: boolean; broken: boolean; remainingHp: number } {
+    const rockData = this.rockMap.get(rockId);
+    if (!rockData || rockData.isBroken) {
+      return { hit: false, broken: false, remainingHp: 0 };
+    }
+
+    const currentHp = rockData.obstacle.health ?? 50;
+    const newHp = Math.max(0, currentHp - damage);
+    rockData.obstacle.health = newHp;
+
+    // Stone particle burst at impact point
+    this.createStoneChips(rockData.obstacle.x, rockData.obstacle.y + 0.6, rockData.obstacle.z, 14);
+
+    // Rock vibration shake
+    rockData.mesh.rotation.y += (Math.random() - 0.5) * 0.15;
+    rockData.mesh.rotation.z += (Math.random() - 0.5) * 0.1;
+
+    if (newHp <= 0) {
+      // Rock is SHATTERED on 5th hit!
+      rockData.isBroken = true;
+      rockData.obstacle.isFelled = true;
+      rockData.mesh.visible = false;
+
+      // Remove physical obstacle collision
+      this.removeObstacle(rockData.obstacle);
+
+      // Massive stone shatter particle explosion
+      this.createStoneChips(rockData.obstacle.x, rockData.obstacle.y + 0.8, rockData.obstacle.z, 36);
+
+      soundManager.playExplosion();
+
+      return { hit: true, broken: true, remainingHp: 0 };
+    } else {
+      soundManager.playToolAction('pickaxe');
+      return { hit: true, broken: false, remainingHp: newHp };
+    }
+  }
+
   private setupLighting() {
     const hemiLight = new THREE.HemisphereLight(0xb8d5e5, 0x3a532e, 0.75);
     hemiLight.position.set(0, 300, 0);
@@ -419,14 +541,21 @@ export class ColonialWorld {
         rock.receiveShadow = true;
         foliageGroup.add(rock);
 
-        this.addObstacle({
+        const rockId = `rock_mtn_${foliageGroup.children.length}`;
+        const rockObs: WorldObstacle = {
+          id: rockId,
           x,
           z,
           y,
           radius: 1.3 * rScale,
           height: rockH * 1.3,
-          type: 'rock'
-        });
+          type: 'rock',
+          health: 50,
+          maxHealth: 50,
+          isFelled: false
+        };
+        this.addObstacle(rockObs);
+        this.rockMap.set(rockId, { obstacle: rockObs, mesh: rock });
       } else if (y > 10.0 && y <= 13.0 && Math.random() < 0.2) {
         // Shoreline stones along coastal and river beaches
         const rock = new THREE.Mesh(rockGeom1, rockMat);
@@ -436,14 +565,21 @@ export class ColonialWorld {
         rock.position.set(x, y + 0.2, z);
         foliageGroup.add(rock);
 
-        this.addObstacle({
+        const rockId = `rock_shore_${foliageGroup.children.length}`;
+        const rockObs: WorldObstacle = {
+          id: rockId,
           x,
           z,
           y,
           radius: 0.9 * rScale,
           height: stoneH * 1.2,
-          type: 'rock'
-        });
+          type: 'rock',
+          health: 50,
+          maxHealth: 50,
+          isFelled: false
+        };
+        this.addObstacle(rockObs);
+        this.rockMap.set(rockId, { obstacle: rockObs, mesh: rock });
       }
     }
 

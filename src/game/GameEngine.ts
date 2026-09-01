@@ -1415,13 +1415,21 @@ export class GameEngine {
           this.colonialWorld.createWoodChips(digX, this.controls.position.y - 1.2, digZ, 18);
         }
       } else if (toolId === 'pickaxe') {
-        soundManager.playToolAction('pickaxe');
         const forwardDir = new THREE.Vector3();
         this.camera.getWorldDirection(forwardDir);
-        const hitX = this.controls.position.x + forwardDir.x * 2.0;
-        const hitZ = this.controls.position.z + forwardDir.z * 2.0;
-        const hitY = this.terrain.getHeightAt(hitX, hitZ);
-        this.colonialWorld.createWoodChips(hitX, hitY + 0.3, hitZ, 16);
+        const targetRock = this.colonialWorld.findRockInReach(this.controls.position, forwardDir, 4.8);
+
+        if (targetRock && targetRock.id) {
+          const spec = SPECIALTIES[this.loadout.specialty];
+          const dmg = TOOLS.pickaxe.damage * (spec ? spec.modifiers.damageMultiplier : 1.0);
+          this.colonialWorld.hitRock(targetRock.id, dmg, forwardDir);
+        } else {
+          soundManager.playToolAction('pickaxe');
+          const hitX = this.controls.position.x + forwardDir.x * 2.0;
+          const hitZ = this.controls.position.z + forwardDir.z * 2.0;
+          const hitY = this.terrain.getHeightAt(hitX, hitZ);
+          this.colonialWorld.createStoneChips(hitX, hitY + 0.3, hitZ, 12);
+        }
       } else if (toolId === 'med_kit') {
         soundManager.playToolAction(toolId);
         // Heals 20 health

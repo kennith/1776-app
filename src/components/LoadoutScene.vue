@@ -320,13 +320,13 @@ const onBackClicked = () => {
               <div v-else-if="tool.id === 'pickaxe'" class="stat-bars tool-stat-bars font-cinzel">
                 <div class="stat-row">
                   <span class="stat-lbl">DAMAGE:</span>
-                  <div class="bar-track"><div class="bar-fill damage" style="width: 40%;"></div></div>
-                  <span class="stat-val">25 DMG</span>
+                  <div class="bar-track"><div class="bar-fill damage" style="width: 18%;"></div></div>
+                  <span class="stat-val">10 DMG</span>
                 </div>
                 <div class="stat-row">
-                  <span class="stat-lbl">MINE SPEED:</span>
-                  <div class="bar-track"><div class="bar-fill rate" style="width: 75%;"></div></div>
-                  <span class="stat-val">1.1x</span>
+                  <span class="stat-lbl">STONE BREAK:</span>
+                  <div class="bar-track"><div class="bar-fill rate" style="width: 100%;"></div></div>
+                  <span class="stat-val">5 Hits (50 HP)</span>
                 </div>
                 <div class="stat-row">
                   <span class="stat-lbl">TARGET:</span>
