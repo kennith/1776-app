@@ -896,19 +896,26 @@ export class GameEngine {
   }
 
   private buildGrenadeModel(parent: THREE.Group) {
-    const orbGeom = new THREE.SphereGeometry(0.07, 16, 16);
-    const orbMat = new THREE.MeshStandardMaterial({ color: 0x1e272e, metalness: 0.8, roughness: 0.5 });
+    const grenade = new THREE.Group();
+    grenade.position.set(0.08, -0.16, -0.26);
+
+    // Heavy Cast-Iron Powder Bomb (Bigger Viewmodel Sphere)
+    const orbGeom = new THREE.SphereGeometry(0.12, 18, 18);
+    const orbMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.85, roughness: 0.55 });
     const orb = new THREE.Mesh(orbGeom, orbMat);
-    orb.position.set(0, 0, -0.25);
-    parent.add(orb);
+    grenade.add(orb);
 
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.03, 8), new THREE.MeshStandardMaterial({ color: 0xd4af37 }));
-    cap.position.set(0, 0.075, -0.25);
-    parent.add(cap);
+    // Brass neck fuse collar
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.045, 8), new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.3 }));
+    cap.position.set(0, 0.125, 0);
+    grenade.add(cap);
 
-    const wick = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.04, 6), new THREE.MeshStandardMaterial({ color: 0xff4757, emissive: 0xff4757 }));
-    wick.position.set(0, 0.1, -0.25);
-    parent.add(wick);
+    // Burning red wick
+    const wick = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.06, 6), new THREE.MeshBasicMaterial({ color: 0xff3838 }));
+    wick.position.set(0, 0.165, 0);
+    grenade.add(wick);
+
+    parent.add(grenade);
   }
 
   /**
@@ -1212,40 +1219,53 @@ export class GameEngine {
   /**
    * Spawns a physical 3D black powder grenade with ballistic toss arc & burning fuse
    */
+  /**
+   * Spawns a physical 3D black powder grenade with ballistic toss arc & burning fuse
+   */
   private throwGrenade() {
     const throwDir = new THREE.Vector3();
     this.camera.getWorldDirection(throwDir);
 
     const grenadeGroup = new THREE.Group();
 
-    // 1. Cast-iron spherical casing
-    const orbGeom = new THREE.SphereGeometry(0.10, 14, 14);
+    // 1. Heavy Cast-iron spherical casing (Much Bigger Bomb Size: 0.24m radius)
+    const orbGeom = new THREE.SphereGeometry(0.24, 18, 18);
     const orbMat = new THREE.MeshStandardMaterial({
-      color: 0x1a1a1a,
-      metalness: 0.85,
-      roughness: 0.55
+      color: 0x141414,
+      metalness: 0.88,
+      roughness: 0.52
     });
     const orb = new THREE.Mesh(orbGeom, orbMat);
     grenadeGroup.add(orb);
 
-    // 2. Brass neck cap
+    // Cast-iron reinforcement equator rim band
+    const bandGeom = new THREE.TorusGeometry(0.242, 0.016, 8, 24);
+    bandGeom.rotateX(Math.PI / 2);
+    const band = new THREE.Mesh(bandGeom, orbMat);
+    grenadeGroup.add(band);
+
+    // 2. Brass neck cap collar
     const cap = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.02, 0.03, 0.04, 8),
+      new THREE.CylinderGeometry(0.045, 0.065, 0.08, 10),
       new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.3 })
     );
-    cap.position.set(0, 0.10, 0);
+    cap.position.set(0, 0.24, 0);
     grenadeGroup.add(cap);
 
-    // 3. Burning fuse
+    // 3. Burning fuse cord & glowing spark
     const wick = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.006, 0.006, 0.05, 6),
+      new THREE.CylinderGeometry(0.012, 0.012, 0.10, 8),
       new THREE.MeshBasicMaterial({ color: 0xff3838 })
     );
-    wick.position.set(0, 0.13, 0);
+    wick.position.set(0, 0.31, 0);
     grenadeGroup.add(wick);
 
+    const sparkLight = new THREE.PointLight(0xff5500, 3.0, 6);
+    sparkLight.position.set(0, 0.35, 0);
+    grenadeGroup.add(sparkLight);
+
     // Spawn slightly in front of camera
-    const spawnPos = this.camera.position.clone().add(throwDir.clone().multiplyScalar(0.6));
+    const spawnPos = this.camera.position.clone().add(throwDir.clone().multiplyScalar(0.75));
     grenadeGroup.position.copy(spawnPos);
     this.scene.add(grenadeGroup);
 
@@ -1255,9 +1275,9 @@ export class GameEngine {
     velocity.y += 6.0; // Upward toss lob
 
     const rotVel = new THREE.Vector3(
-      (Math.random() - 0.5) * 14,
-      (Math.random() - 0.5) * 14,
-      (Math.random() - 0.5) * 14
+      (Math.random() - 0.5) * 12,
+      (Math.random() - 0.5) * 12,
+      (Math.random() - 0.5) * 12
     );
 
     this.activeGrenades.push({
@@ -1327,7 +1347,7 @@ export class GameEngine {
       particles,
       particleVelocities,
       age: 0,
-      maxAge: 1.3
+      maxAge: 1.85 // 30% slower cinematic explosion duration (extended from 1.3s to 1.85s)
     });
 
     // Play explosion acoustic boom
@@ -1646,29 +1666,31 @@ export class GameEngine {
       }
     }
 
-    // Active Explosion Fireball & Particle Effects
+    // Active Explosion Fireball & Particle Effects (30% Slower Cinematic Explosion)
     for (let i = this.activeExplosions.length - 1; i >= 0; i--) {
       const ex = this.activeExplosions[i];
-      ex.age += delta;
+      // 30% slower time progression for explosion shockwave and particle diffusion
+      const slowDelta = delta * 0.70;
+      ex.age += slowDelta;
       const progress = ex.age / ex.maxAge;
 
-      // Fireball shockwave expansion & fade (3X Scale)
-      const scale = 1.0 + progress * 24.0;
+      // Fireball shockwave expansion & fade (3X Scale with slower shockwave)
+      const scale = 1.0 + Math.pow(progress, 0.8) * 26.0;
       ex.sphere.scale.set(scale, scale, scale);
-      (ex.sphere.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1.0 - progress);
-      ex.light.intensity = Math.max(0, 45 * (1.0 - progress));
+      (ex.sphere.material as THREE.MeshBasicMaterial).opacity = Math.max(0, (1.0 - progress) * 0.95);
+      ex.light.intensity = Math.max(0, 45 * Math.pow(1.0 - progress, 1.2));
 
-      // Smoke and debris particle propagation
+      // Smoke and debris particle propagation (30% slower velocity propagation)
       const positions = ex.particles.geometry.attributes.position.array as Float32Array;
       for (let p = 0; p < ex.particleVelocities.length; p++) {
         const vel = ex.particleVelocities[p];
-        vel.y -= 16 * delta;
-        positions[p * 3] += vel.x * delta;
-        positions[p * 3 + 1] += vel.y * delta;
-        positions[p * 3 + 2] += vel.z * delta;
+        vel.y -= 11.5 * slowDelta;
+        positions[p * 3] += vel.x * slowDelta;
+        positions[p * 3 + 1] += vel.y * slowDelta;
+        positions[p * 3 + 2] += vel.z * slowDelta;
       }
       ex.particles.geometry.attributes.position.needsUpdate = true;
-      (ex.particles.material as THREE.PointsMaterial).opacity = Math.max(0, 1.0 - progress);
+      (ex.particles.material as THREE.PointsMaterial).opacity = Math.max(0, (1.0 - progress) * 0.95);
 
       if (ex.age >= ex.maxAge) {
         this.scene.remove(ex.group);
