@@ -42,6 +42,7 @@ export interface PlayerLoadout {
   mainWeapon: MainWeaponId;
   subWeapon: SubWeaponId;
   tool: ToolId;
+  tools?: ToolId[]; // Up to 3 equipped utility tools
   specialty: SpecialtyId;
 }
 
@@ -82,6 +83,8 @@ export interface PlayerState {
   isDead: boolean;
   causeOfDeath: string;
   activeSlot: 'main' | 'sub' | 'tool';
+  selectedToolIndex: number;
+  equippedTools: ToolId[];
   isReloading: boolean;
   reloadProgress: number; // 0.0 to 1.0
   reloadTimeTotal: number;
@@ -384,6 +387,7 @@ export const DEFAULT_LOADOUT: PlayerLoadout = {
   mainWeapon: 'springfield',
   subWeapon: 'flintlock_pistol',
   tool: 'axe',
+  tools: ['axe', 'shovel', 'med_kit'],
   specialty: 'attacker'
 };
 

@@ -3,7 +3,7 @@ import { TerrainGenerator } from './TerrainGenerator';
 import { FirstPersonControls } from './FirstPersonControls';
 import { ColonialWorld } from './ColonialWorld';
 import { soundManager } from '../audio/SoundManager';
-import type { PlayerState, Landmark, PlayerLoadout, BuildingId } from '../types';
+import type { PlayerState, Landmark, PlayerLoadout, BuildingId, ToolId } from '../types';
 import { DEFAULT_LOADOUT, MAIN_WEAPONS, SUB_WEAPONS, TOOLS, SPECIALTIES, BUILDING_BLUEPRINTS } from '../types';
 
 interface ActiveGrenade {
@@ -339,6 +339,15 @@ export class GameEngine {
   }
 
   /**
+   * Returns the currently active Tool ID based on the player's selected tool index
+   */
+  public getActiveToolId(): ToolId {
+    const tools = this.loadout.tools && this.loadout.tools.length > 0 ? this.loadout.tools : [this.loadout.tool || 'axe'];
+    const idx = Math.min(Math.max(0, this.controls.selectedToolIndex), tools.length - 1);
+    return tools[idx] || 'axe';
+  }
+
+  /**
    * Rebuilds the 3D first person viewmodel and third-person held weapon according to the active loadout slot
    */
   public rebuildWeaponViewModel(slot: 'main' | 'sub' | 'tool') {
@@ -385,7 +394,7 @@ export class GameEngine {
         this.buildPistolModel(thirdPersonWeapon);
       }
     } else {
-      const toolId = this.loadout.tool;
+      const toolId = this.getActiveToolId();
       if (toolId === 'shovel') {
         this.buildShovelModel(this.activeWeaponMesh);
         this.buildShovelModel(thirdPersonWeapon);
@@ -1280,7 +1289,7 @@ export class GameEngine {
         this.controls.startReload(subInfo.reloadTime);
       }
     } else {
-      const toolId = this.loadout.tool;
+      const toolId = this.getActiveToolId();
       this.isSwinging = true;
 
       if (toolId === 'axe') {

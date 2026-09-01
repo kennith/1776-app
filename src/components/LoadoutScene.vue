@@ -16,7 +16,12 @@ const emit = defineEmits<{
 
 const selectedMain = ref<MainWeaponId>(props.initialLoadout.mainWeapon);
 const selectedSub = ref<SubWeaponId>(props.initialLoadout.subWeapon);
-const selectedTool = ref<ToolId>(props.initialLoadout.tool);
+const selectedTools = ref<ToolId[]>(
+  props.initialLoadout.tools && props.initialLoadout.tools.length > 0
+    ? [...props.initialLoadout.tools]
+    : [props.initialLoadout.tool || 'axe']
+);
+const selectedTool = ref<ToolId>(selectedTools.value[0] || props.initialLoadout.tool || 'axe');
 const selectedSpecialty = ref<SpecialtyId>(props.initialLoadout.specialty);
 
 const activeTab = ref<'all' | 'main' | 'sub' | 'tool' | 'specialty'>('all');
@@ -43,10 +48,26 @@ const selectSub = (id: SubWeaponId) => {
   else if (id === 'grenade') soundManager.playExplosion();
 };
 
-const selectTool = (id: ToolId) => {
-  selectedTool.value = id;
+const toggleTool = (id: ToolId) => {
   soundManager.playClick();
   soundManager.playToolAction(id);
+
+  const idx = selectedTools.value.indexOf(id);
+  if (idx >= 0) {
+    // If already equipped, deselect it unless it's the only one left (minimum 1)
+    if (selectedTools.value.length > 1) {
+      selectedTools.value.splice(idx, 1);
+    }
+  } else {
+    // Equip tool up to max 3
+    if (selectedTools.value.length < 3) {
+      selectedTools.value.push(id);
+    } else {
+      // If already at max 3, replace the 3rd tool
+      selectedTools.value[2] = id;
+    }
+  }
+  selectedTool.value = selectedTools.value[0] || id;
 };
 
 const selectSpecialty = (id: SpecialtyId) => {
@@ -57,7 +78,8 @@ const selectSpecialty = (id: SpecialtyId) => {
 const getLoadoutObject = (): PlayerLoadout => ({
   mainWeapon: selectedMain.value,
   subWeapon: selectedSub.value,
-  tool: selectedTool.value,
+  tool: selectedTools.value[0] || 'axe',
+  tools: [...selectedTools.value],
   specialty: selectedSpecialty.value
 });
 
@@ -229,12 +251,12 @@ const onBackClicked = () => {
           </div>
         </section>
 
-        <!-- 3. TOOLS SECTION -->
+        <!-- 3. TOOLS SECTION (EQUIP UP TO 3) -->
         <section v-if="activeTab === 'all' || activeTab === 'tool'" class="loadout-section">
           <div class="section-badge font-cinzel">
             <span class="sec-num">SECTION 3</span>
-            <span class="sec-title">TOOLS (CHOOSE ONE)</span>
-            <span class="sec-status">Selected: <strong>{{ TOOLS[selectedTool].name }}</strong></span>
+            <span class="sec-title">TOOLS (EQUIP UP TO THREE)</span>
+            <span class="sec-status">Selected ({{ selectedTools.length }}/3): <strong>{{ selectedTools.map(t => TOOLS[t].name).join(' • ') }}</strong></span>
           </div>
 
           <div class="cards-grid cols-3">
@@ -242,12 +264,12 @@ const onBackClicked = () => {
               v-for="tool in Object.values(TOOLS)"
               :key="tool.id"
               class="selection-card parchment-border"
-              :class="{ selected: selectedTool === tool.id }"
-              @click="selectTool(tool.id as ToolId)"
+              :class="{ selected: selectedTools.includes(tool.id as ToolId) }"
+              @click="toggleTool(tool.id as ToolId)"
             >
               <div class="card-radio-indicator">
-                <span v-if="selectedTool === tool.id">✓ EQUIPPED</span>
-                <span v-else>CHOOSE</span>
+                <span v-if="selectedTools.includes(tool.id as ToolId)">✓ EQUIPPED (SLOT {{ selectedTools.indexOf(tool.id as ToolId) + 3 }})</span>
+                <span v-else>+ EQUIP (UP TO 3)</span>
               </div>
 
               <div class="card-header">
@@ -392,9 +414,9 @@ const onBackClicked = () => {
               <strong class="short-name">{{ SUB_WEAPONS[selectedSub].name }}</strong>
             </div>
             <div class="short-slot">
-              <span class="short-cat font-cinzel">TOOL:</span>
-              <span class="short-icon">{{ TOOLS[selectedTool].icon }}</span>
-              <strong class="short-name">{{ TOOLS[selectedTool].name }}</strong>
+              <span class="short-cat font-cinzel">TOOLS ({{ selectedTools.length }}/3):</span>
+              <span class="short-icon">{{ selectedTools.map(t => TOOLS[t].icon).join(' ') }}</span>
+              <strong class="short-name">{{ selectedTools.map(t => TOOLS[t].name).join(', ') }}</strong>
             </div>
             <div class="short-slot specialty-short-slot">
               <span class="short-cat font-cinzel">SPECIALTY:</span>
@@ -444,12 +466,14 @@ const onBackClicked = () => {
             </div>
 
             <div class="summary-slot">
-              <span class="slot-label font-cinzel">TOOL</span>
-              <div class="slot-val">
-                <span class="slot-icon">{{ TOOLS[selectedTool].icon }}</span>
-                <div>
-                  <strong>{{ TOOLS[selectedTool].name }}</strong>
-                  <div class="slot-sub">{{ TOOLS[selectedTool].type }}</div>
+              <span class="slot-label font-cinzel">TOOLS ({{ selectedTools.length }}/3 EQUIPPED)</span>
+              <div class="slot-val multi-tool-dock-list">
+                <div v-for="(tId, tIdx) in selectedTools" :key="tId" class="multi-tool-dock-item">
+                  <span class="slot-icon">{{ TOOLS[tId].icon }}</span>
+                  <div>
+                    <strong>[{{ tIdx + 3 }}] {{ TOOLS[tId].name }}</strong>
+                    <div class="slot-sub">{{ TOOLS[tId].type }}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1026,6 +1050,22 @@ const onBackClicked = () => {
   align-items: center;
   gap: 8px;
   margin-top: 4px;
+}
+
+.multi-tool-dock-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.multi-tool-dock-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.multi-tool-dock-item .slot-icon {
+  font-size: 1.1rem;
 }
 
 .slot-icon {

@@ -252,7 +252,7 @@ onUnmounted(() => {
           <div v-if="loadout" class="active-loadout-preview font-cinzel">
             <span class="preview-item">Main: <strong>{{ MAIN_WEAPONS[loadout.mainWeapon].name }}</strong></span>
             <span class="preview-item">Sub: <strong>{{ SUB_WEAPONS[loadout.subWeapon].name }}</strong></span>
-            <span class="preview-item">Tool: <strong>{{ TOOLS[loadout.tool].name }}</strong></span>
+            <span class="preview-item">Tools: <strong>{{ loadout.tools && loadout.tools.length > 0 ? loadout.tools.map(t => TOOLS[t].name).join(', ') : TOOLS[loadout.tool].name }}</strong></span>
             <span class="preview-item specialty-pill">Specialty: <strong>{{ SPECIALTIES[loadout.specialty].name }}</strong></span>
           </div>
         </div>

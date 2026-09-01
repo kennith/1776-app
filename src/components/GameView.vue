@@ -49,6 +49,8 @@ const playerState = ref<PlayerState>({
   isDead: false,
   causeOfDeath: '',
   activeSlot: 'main',
+  selectedToolIndex: 0,
+  equippedTools: ['axe', 'shovel', 'med_kit'],
   isReloading: false,
   reloadProgress: 0,
   reloadTimeTotal: 0,
@@ -189,9 +191,9 @@ const onShoot = () => {
   }
 };
 
-const onSwitchSlot = (slot: 'main' | 'sub' | 'tool') => {
+const onSwitchSlot = (slot: 'main' | 'sub' | 'tool', toolIndex?: number) => {
   if (gameEngine) {
-    gameEngine.controls.switchSlot(slot);
+    gameEngine.controls.switchSlot(slot, toolIndex);
   }
 };
 

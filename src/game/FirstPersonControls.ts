@@ -33,6 +33,7 @@ export class FirstPersonControls {
   public health: number = 100;
   public maxHealth: number = 100;
   public activeSlot: 'main' | 'sub' | 'tool' = 'main';
+  public selectedToolIndex: number = 0;
 
   // Per-slot persistent reload timers (prevents weapon-switch reload exploit!)
   public slotCooldowns: Record<'main' | 'sub' | 'tool', SlotCooldown> = {
@@ -326,13 +327,23 @@ export class FirstPersonControls {
       else if (e.code === 'Digit4' || e.code === 'Numpad4') this.selectedBuilding = 'cabin';
       else if (e.code === 'Digit5' || e.code === 'Numpad5') this.selectedBuilding = 'watchtower';
     } else {
-      // Weapon / Tool Slot Hotkeys: 1 (Main), 2 (Sub), 3 (Tool)
+      const equippedTools = this.loadout.tools && this.loadout.tools.length > 0 ? this.loadout.tools : [this.loadout.tool || 'axe'];
+
+      // Weapon / Tool Slot Hotkeys: 1 (Main), 2 (Sub), 3 (Tool 1), 4 (Tool 2), 5 (Tool 3)
       if (e.code === 'Digit1' || e.code === 'Numpad1') {
         this.switchSlot('main');
       } else if (e.code === 'Digit2' || e.code === 'Numpad2') {
         this.switchSlot('sub');
       } else if (e.code === 'Digit3' || e.code === 'Numpad3') {
-        this.switchSlot('tool');
+        this.switchSlot('tool', 0);
+      } else if (e.code === 'Digit4' || e.code === 'Numpad4') {
+        if (equippedTools.length > 1) {
+          this.switchSlot('tool', 1);
+        }
+      } else if (e.code === 'Digit5' || e.code === 'Numpad5') {
+        if (equippedTools.length > 2) {
+          this.switchSlot('tool', 2);
+        }
       }
     }
   }
@@ -377,21 +388,37 @@ export class FirstPersonControls {
   /**
    * Switching weapon slot preserves the reload timer of all slots
    */
-  public switchSlot(slot: 'main' | 'sub' | 'tool') {
+  public switchSlot(slot: 'main' | 'sub' | 'tool', toolIndex?: number) {
     if (this.isBuildingMode) {
       this.isBuildingMode = false;
     }
-    if (this.activeSlot === slot) return;
-    this.activeSlot = slot;
+
+    const equippedTools = this.loadout.tools && this.loadout.tools.length > 0 ? this.loadout.tools : [this.loadout.tool || 'axe'];
+
+    if (slot === 'tool') {
+      if (toolIndex !== undefined && toolIndex >= 0 && toolIndex < equippedTools.length) {
+        this.selectedToolIndex = toolIndex;
+        this.activeSlot = 'tool';
+      } else if (this.activeSlot === 'tool') {
+        // Cycle through equipped tools when pressing 3 again without index
+        this.selectedToolIndex = (this.selectedToolIndex + 1) % equippedTools.length;
+      } else {
+        this.activeSlot = 'tool';
+      }
+    } else {
+      if (this.activeSlot === slot) return;
+      this.activeSlot = slot;
+    }
+
     soundManager.playClick();
 
     // If new slot is currently still reloading, play the reload sound ambience
-    if (this.slotCooldowns[slot].isReloading) {
+    if (this.slotCooldowns[this.activeSlot].isReloading) {
       soundManager.playReloadSound();
     }
 
     if (this.onSlotChangeCallback) {
-      this.onSlotChangeCallback(slot);
+      this.onSlotChangeCallback(this.activeSlot);
     }
   }
 
@@ -415,7 +442,9 @@ export class FirstPersonControls {
     } else if (this.activeSlot === 'sub') {
       return SUB_WEAPONS[this.loadout.subWeapon].reloadTime;
     } else {
-      return TOOLS[this.loadout.tool].reloadTime;
+      const tools = this.loadout.tools && this.loadout.tools.length > 0 ? this.loadout.tools : [this.loadout.tool || 'axe'];
+      const activeToolId = tools[this.selectedToolIndex] || tools[0] || 'axe';
+      return TOOLS[activeToolId].reloadTime;
     }
   }
 
@@ -897,6 +926,8 @@ export class FirstPersonControls {
       isDead: this.isDead,
       causeOfDeath: this.causeOfDeath,
       activeSlot: this.activeSlot,
+      selectedToolIndex: this.selectedToolIndex,
+      equippedTools: this.loadout.tools && this.loadout.tools.length > 0 ? [...this.loadout.tools] : [this.loadout.tool || 'axe'],
       isReloading: currentCd.isReloading,
       reloadProgress: slotReloads[this.activeSlot].progress,
       reloadTimeTotal: currentCd.total,

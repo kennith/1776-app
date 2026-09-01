@@ -28,7 +28,7 @@ const emit = defineEmits<{
   (e: 'teleport', x: number, z: number): void;
   (e: 'respawn'): void;
   (e: 'shoot'): void;
-  (e: 'switch-slot', slot: 'main' | 'sub' | 'tool'): void;
+  (e: 'switch-slot', slot: 'main' | 'sub' | 'tool', toolIndex?: number): void;
   (e: 'toggle-perspective'): void;
 }>();
 
@@ -313,7 +313,7 @@ const cardinalDirection = computed(() => {
           <div><kbd>E</kbd> Backpack</div>
           <div><kbd>Q</kbd> Map</div>
           <div><kbd>B</kbd> Build Mode</div>
-          <div><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> Weapons</div>
+          <div><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd><kbd>5</kbd> Weapons & Tools</div>
           <div><kbd>CLICK</kbd> Attack / Chop / Build</div>
           <div><kbd>ESC</kbd> Pause / Menu / Cancel</div>
         </div>
@@ -615,23 +615,27 @@ const cardinalDirection = computed(() => {
             </div>
           </div>
 
+          <!-- Dynamic Tool Slots ([3], [4], [5]) -->
           <div
+            v-for="(tId, tIdx) in (playerState.equippedTools && playerState.equippedTools.length > 0 ? playerState.equippedTools : [loadout.tool || 'axe'])"
+            :key="`${tId}_${tIdx}`"
             class="hotbar-slot"
             :class="{
-              active: playerState.activeSlot === 'tool' && !playerState.isBuildingMode,
-              'slot-reloading': playerState.slotReloads?.tool?.isReloading
+              active: playerState.activeSlot === 'tool' && playerState.selectedToolIndex === tIdx && !playerState.isBuildingMode,
+              'slot-reloading': playerState.slotReloads?.tool?.isReloading && playerState.selectedToolIndex === tIdx
             }"
-            @click="emit('switch-slot', 'tool')"
+            @click="emit('switch-slot', 'tool', tIdx)"
+            :title="`Press ${tIdx + 3} to equip ${TOOLS[tId]?.name || 'Tool'}`"
           >
-            <div class="slot-num">3</div>
-            <div class="slot-icon">{{ TOOLS[loadout.tool].icon }}</div>
+            <div class="slot-num">{{ tIdx + 3 }}</div>
+            <div class="slot-icon">{{ TOOLS[tId]?.icon || '🪓' }}</div>
             <div class="slot-info">
-              <span class="slot-name">{{ TOOLS[loadout.tool].name }}</span>
+              <span class="slot-name">{{ TOOLS[tId]?.name || 'Tool' }}</span>
               <span class="slot-cat">
-                TOOL • {{ loadout.tool === 'med_kit' ? 'Heals 20 HP (60s)' : loadout.tool === 'shovel' ? 'Digs 3ft / 5 DMG' : '15 DMG (3-Hit Tree)' }}
+                TOOL • {{ tId === 'med_kit' ? 'Heals 20 HP' : tId === 'shovel' ? 'Digs 3ft / 5 DMG' : '15 DMG (3-Hit)' }}
               </span>
             </div>
-            <div v-if="playerState.slotReloads?.tool?.isReloading" class="slot-reload-overlay">
+            <div v-if="playerState.slotReloads?.tool?.isReloading && playerState.selectedToolIndex === tIdx" class="slot-reload-overlay">
               <div class="slot-reload-fill" :style="{ width: `${playerState.slotReloads.tool.progress * 100}%` }"></div>
             </div>
           </div>
