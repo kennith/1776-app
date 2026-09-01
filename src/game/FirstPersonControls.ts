@@ -71,7 +71,7 @@ export class FirstPersonControls {
   public isBuildingMode: boolean = false;
   public selectedBuilding: BuildingId = 'campfire';
   public buildingRotation: number = 0;
-  public buildingList: BuildingId[] = ['campfire', 'palisade', 'bridge', 'cabin', 'watchtower'];
+  public buildingList: BuildingId[] = ['campfire', 'palisade', 'stone_wall', 'stone_furnace', 'stone_well', 'bridge', 'cabin', 'watchtower'];
   private onToggleBuildCallback: (() => void) | null = null;
   public isConstructing: boolean = false;
   public constructionProgress: number = 0;
@@ -326,12 +326,15 @@ export class FirstPersonControls {
         this.buildingRotation = (this.buildingRotation + Math.PI / 4) % (Math.PI * 2);
       }
 
-      // Quick select structure blueprints 1-5
+      // Quick select structure blueprints 1-8
       if (e.code === 'Digit1' || e.code === 'Numpad1') this.selectedBuilding = 'campfire';
       else if (e.code === 'Digit2' || e.code === 'Numpad2') this.selectedBuilding = 'palisade';
-      else if (e.code === 'Digit3' || e.code === 'Numpad3') this.selectedBuilding = 'bridge';
-      else if (e.code === 'Digit4' || e.code === 'Numpad4') this.selectedBuilding = 'cabin';
-      else if (e.code === 'Digit5' || e.code === 'Numpad5') this.selectedBuilding = 'watchtower';
+      else if (e.code === 'Digit3' || e.code === 'Numpad3') this.selectedBuilding = 'stone_wall';
+      else if (e.code === 'Digit4' || e.code === 'Numpad4') this.selectedBuilding = 'stone_furnace';
+      else if (e.code === 'Digit5' || e.code === 'Numpad5') this.selectedBuilding = 'stone_well';
+      else if (e.code === 'Digit6' || e.code === 'Numpad6') this.selectedBuilding = 'bridge';
+      else if (e.code === 'Digit7' || e.code === 'Numpad7') this.selectedBuilding = 'cabin';
+      else if (e.code === 'Digit8' || e.code === 'Numpad8') this.selectedBuilding = 'watchtower';
     } else {
       const equippedTools = this.loadout.tools && this.loadout.tools.length > 0 ? this.loadout.tools : [this.loadout.tool || 'axe'];
 

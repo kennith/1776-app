@@ -787,6 +787,123 @@ export class ColonialWorld {
       const beam2 = new THREE.Mesh(beamGeom, woodMat);
       beam2.position.set(0, 2.2, 0.15);
       group.add(beam2);
+    } else if (type === 'stone_wall') {
+      // Heavy Granite Stone Redoubt / Bastion Wall (4.2m wide, 2.8m high, 1.2m thick)
+      const baseWallGeom = new THREE.BoxGeometry(4.2, 2.2, 1.2);
+      const baseWall = new THREE.Mesh(baseWallGeom, stoneMat);
+      baseWall.position.set(0, 1.1, 0);
+      group.add(baseWall);
+
+      // Top Embrasures / Crenellations (3 stone merlons with 2 firing gaps)
+      const merlonGeom = new THREE.BoxGeometry(0.9, 0.6, 1.25);
+      const m1 = new THREE.Mesh(merlonGeom, stoneMat);
+      m1.position.set(-1.65, 2.5, 0);
+      group.add(m1);
+
+      const m2 = new THREE.Mesh(merlonGeom, stoneMat);
+      m2.position.set(0, 2.5, 0);
+      group.add(m2);
+
+      const m3 = new THREE.Mesh(merlonGeom, stoneMat);
+      m3.position.set(1.65, 2.5, 0);
+      group.add(m3);
+
+      // Heavy timber cap coping & bracing ties
+      const timberTieGeom = new THREE.BoxGeometry(4.3, 0.12, 0.25);
+      const tTie1 = new THREE.Mesh(timberTieGeom, woodMat);
+      tTie1.position.set(0, 2.25, 0.55);
+      group.add(tTie1);
+
+      const tTie2 = new THREE.Mesh(timberTieGeom, woodMat);
+      tTie2.position.set(0, 2.25, -0.55);
+      group.add(tTie2);
+    } else if (type === 'stone_furnace') {
+      // Colonial Field Forge & Masonry Smelting Furnace (2.4m x 2.4m, 3.2m high)
+      // 1. Cobblestone Base Hearth
+      const hearthGeom = new THREE.BoxGeometry(2.4, 1.3, 2.4);
+      const hearth = new THREE.Mesh(hearthGeom, stoneMat);
+      hearth.position.set(0, 0.65, 0);
+      group.add(hearth);
+
+      // 2. Arched Firebox Cavity Front Frame
+      const archGeom = new THREE.BoxGeometry(1.1, 0.8, 0.5);
+      const arch = new THREE.Mesh(archGeom, isGhost ? ghostMat : new THREE.MeshStandardMaterial({ color: 0x1e272e, roughness: 0.95 }));
+      arch.position.set(0, 0.7, 1.0);
+      group.add(arch);
+
+      // 3. Fire Core & PointLight
+      const fireGeom = new THREE.ConeGeometry(0.35, 0.6, 6);
+      const fire = new THREE.Mesh(fireGeom, fireMat);
+      fire.position.set(0, 0.6, 0.85);
+      group.add(fire);
+
+      if (!isGhost) {
+        const forgeLight = new THREE.PointLight(0xff6600, 4.0, 16);
+        forgeLight.position.set(0, 0.8, 0.85);
+        group.add(forgeLight);
+      }
+
+      // 4. Tall Stone Chimney Stack
+      const chimneyGeom = new THREE.BoxGeometry(1.2, 1.9, 1.2);
+      const chimney = new THREE.Mesh(chimneyGeom, stoneMat);
+      chimney.position.set(0, 2.25, -0.3);
+      group.add(chimney);
+
+      // Chimney top cap rim
+      const capGeom = new THREE.BoxGeometry(1.4, 0.16, 1.4);
+      const cap = new THREE.Mesh(capGeom, woodMat);
+      cap.position.set(0, 3.2, -0.3);
+      group.add(cap);
+    } else if (type === 'stone_well') {
+      // Circular Stone-Ringed Water Well with Gabled Timber Roof (2.2m x 2.2m, 2.8m high)
+      // 1. Stone Well Basin Ring
+      const wellRingGeom = new THREE.CylinderGeometry(1.1, 1.15, 1.0, 12, 1, true);
+      const wellRing = new THREE.Mesh(wellRingGeom, stoneMat);
+      wellRing.position.set(0, 0.5, 0);
+      group.add(wellRing);
+
+      // Inner dark water pool
+      const waterGeom = new THREE.CircleGeometry(0.95, 12);
+      waterGeom.rotateX(-Math.PI / 2);
+      const innerWaterMat = isGhost ? ghostMat : new THREE.MeshStandardMaterial({ color: 0x1b4f72, roughness: 0.1, metalness: 0.8 });
+      const innerWater = new THREE.Mesh(waterGeom, innerWaterMat);
+      innerWater.position.set(0, 0.35, 0);
+      group.add(innerWater);
+
+      // 2. Vertical Oak Support Posts
+      const postGeom = new THREE.CylinderGeometry(0.08, 0.10, 2.4, 8);
+      const postL = new THREE.Mesh(postGeom, logMat);
+      postL.position.set(-0.95, 1.2, 0);
+      group.add(postL);
+
+      const postR = new THREE.Mesh(postGeom, logMat);
+      postR.position.set(0.95, 1.2, 0);
+      group.add(postR);
+
+      // 3. Wooden Crossbeam & Spindle
+      const crossbeamGeom = new THREE.BoxGeometry(2.1, 0.12, 0.14);
+      const crossbeam = new THREE.Mesh(crossbeamGeom, woodMat);
+      crossbeam.position.set(0, 2.25, 0);
+      group.add(crossbeam);
+
+      // Hanging wooden bucket
+      const bucketGeom = new THREE.CylinderGeometry(0.18, 0.14, 0.3, 8);
+      const bucket = new THREE.Mesh(bucketGeom, woodMat);
+      bucket.position.set(0, 1.3, 0);
+      group.add(bucket);
+
+      // 4. Gabled Timber Shingle Roof
+      const roofLeftGeom = new THREE.BoxGeometry(1.4, 0.08, 2.3);
+      roofLeftGeom.rotateZ(Math.PI / 5);
+      const roofL = new THREE.Mesh(roofLeftGeom, roofMat);
+      roofL.position.set(-0.55, 2.65, 0);
+      group.add(roofL);
+
+      const roofRightGeom = new THREE.BoxGeometry(1.4, 0.08, 2.3);
+      roofRightGeom.rotateZ(-Math.PI / 5);
+      const roofR = new THREE.Mesh(roofRightGeom, roofMat);
+      roofR.position.set(0.55, 2.65, 0);
+      group.add(roofR);
     } else if (type === 'bridge') {
       // 2 Long Heavy Timber Stringers
       const stringerGeom = new THREE.BoxGeometry(0.22, 0.28, 5.5);

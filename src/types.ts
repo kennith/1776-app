@@ -411,13 +411,14 @@ export const DEFAULT_LOADOUT: PlayerLoadout = {
 // 1776 Frontier Building & Construction System
 // ==========================================
 
-export type BuildingId = 'campfire' | 'palisade' | 'bridge' | 'cabin' | 'watchtower';
+export type BuildingId = 'campfire' | 'palisade' | 'stone_wall' | 'stone_furnace' | 'stone_well' | 'bridge' | 'cabin' | 'watchtower';
 
 export interface BuildingBlueprint {
   id: BuildingId;
   name: string;
   category: 'utility' | 'defense' | 'shelter';
   woodCost: number;
+  stoneCost: number;
   buildTime: number; // in seconds
   description: string;
   icon: string;
@@ -432,21 +433,23 @@ export const BUILDING_BLUEPRINTS: Record<BuildingId, BuildingBlueprint> = {
     id: 'campfire',
     name: 'Frontier Campfire',
     category: 'utility',
-    woodCost: 6, // 6 Wood Timber
-    buildTime: 1.5, // 1.5s build time
+    woodCost: 4,
+    stoneCost: 4,
+    buildTime: 1.5,
     description: 'Stone-ringed burning timber fire with warm glow & embers.',
     icon: '🔥',
     width: 1.6,
     height: 0.8,
     depth: 1.6,
-    health: 60
+    health: 80
   },
   palisade: {
     id: 'palisade',
     name: 'Log Palisade Wall',
     category: 'defense',
-    woodCost: 12, // 12 Wood Timber
-    buildTime: 2.5, // 2.5s build time
+    woodCost: 12,
+    stoneCost: 0,
+    buildTime: 2.5,
     description: 'Defensive wooden log barricade with sharpened spikes for fortresses.',
     icon: '🪵',
     width: 4.2,
@@ -454,43 +457,88 @@ export const BUILDING_BLUEPRINTS: Record<BuildingId, BuildingBlueprint> = {
     depth: 0.9,
     health: 180
   },
+  stone_wall: {
+    id: 'stone_wall',
+    name: 'Granite Stone Redoubt',
+    category: 'defense',
+    woodCost: 2,
+    stoneCost: 14,
+    buildTime: 3.5,
+    description: 'Reinforced masonry fortification wall providing heavy artillery and musket cover.',
+    icon: '🧱',
+    width: 4.2,
+    height: 2.8,
+    depth: 1.2,
+    health: 400
+  },
+  stone_furnace: {
+    id: 'stone_furnace',
+    name: 'Colonial Field Forge',
+    category: 'utility',
+    woodCost: 4,
+    stoneCost: 10,
+    buildTime: 3.0,
+    description: 'Masonry field smelting hearth and furnace with chimney stack & glowing coal fire.',
+    icon: '🌋',
+    width: 2.4,
+    height: 3.2,
+    depth: 2.4,
+    health: 260
+  },
+  stone_well: {
+    id: 'stone_well',
+    name: 'Frontier Stone Well',
+    category: 'utility',
+    woodCost: 6,
+    stoneCost: 8,
+    buildTime: 2.8,
+    description: 'Circular granite well with timber gabled roof and rope winch bucket.',
+    icon: '🪣',
+    width: 2.2,
+    height: 2.8,
+    depth: 2.2,
+    health: 220
+  },
   bridge: {
     id: 'bridge',
     name: 'Timber Plank Ramp / Bridge',
     category: 'utility',
-    woodCost: 15, // 15 Wood Timber
-    buildTime: 3.0, // 3.0s build time
-    description: 'Elevated wooden ramp to cross ocean water, trenches, or ascend cliffs.',
+    woodCost: 12,
+    stoneCost: 4,
+    buildTime: 3.0,
+    description: 'Elevated wooden ramp with stone footings to cross rivers, trenches, or ascend cliffs.',
     icon: '🪜',
     width: 3.2,
     height: 1.6,
     depth: 5.5,
-    health: 150
+    health: 200
   },
   cabin: {
     id: 'cabin',
     name: 'Frontier Log Cabin',
     category: 'shelter',
-    woodCost: 35, // 35 Wood Timber
-    buildTime: 5.0, // 5.0s build time
-    description: 'Solid four-walled wooden cabin with pitched roof and doorway shelter.',
+    woodCost: 28,
+    stoneCost: 10,
+    buildTime: 5.0,
+    description: 'Four-walled wooden cabin with pitched roof, stone chimney, and doorway shelter.',
     icon: '🛖',
     width: 5.2,
     height: 3.8,
     depth: 5.2,
-    health: 350
+    health: 450
   },
   watchtower: {
     id: 'watchtower',
     name: 'Continental Watchtower',
     category: 'defense',
-    woodCost: 50, // 50 Wood Timber
-    buildTime: 6.5, // 6.5s build time
-    description: 'High wooden lookout post with top observation deck for long-range reconnaissance.',
+    woodCost: 35,
+    stoneCost: 12,
+    buildTime: 6.5,
+    description: 'High lookout tower with climbable ladder, stone foundation, and observation deck.',
     icon: '🏰',
     width: 4.2,
     height: 8.5,
     depth: 4.2,
-    health: 500
+    health: 600
   }
 };

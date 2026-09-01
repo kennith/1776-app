@@ -1305,8 +1305,9 @@ export class GameEngine {
 
       const selectedType = this.controls.selectedBuilding;
       const bp = BUILDING_BLUEPRINTS[selectedType];
+      const canAfford = (this.controls.inventory.wood >= bp.woodCost && this.controls.inventory.stone >= bp.stoneCost);
       
-      if (this.controls.inventory.wood >= bp.woodCost) {
+      if (canAfford) {
         const forward = new THREE.Vector3();
         this.camera.getWorldDirection(forward);
         const targetX = this.controls.position.x + forward.x * 6.5;
@@ -1627,8 +1628,9 @@ export class GameEngine {
 
           // Check if construction finished!
           if (this.constructionTimer >= this.constructionDuration) {
-            if (this.controls.inventory.wood >= bp.woodCost) {
+            if (this.controls.inventory.wood >= bp.woodCost && this.controls.inventory.stone >= bp.stoneCost) {
               this.controls.inventory.wood -= bp.woodCost;
+              this.controls.inventory.stone -= bp.stoneCost;
 
               this.colonialWorld.spawnBuilding(
                 this.constructionTarget.type,
@@ -1673,16 +1675,16 @@ export class GameEngine {
     if (this.controls.isBuildingMode) {
       const selectedType = this.controls.selectedBuilding;
       const bp = BUILDING_BLUEPRINTS[selectedType];
-      const hasWood = (this.controls.inventory.wood >= bp.woodCost);
+      const canAfford = (this.controls.inventory.wood >= bp.woodCost && this.controls.inventory.stone >= bp.stoneCost);
 
-      if (!this.ghostBuildingMesh || this.ghostBuildingType !== selectedType || this.ghostBuildingValid !== hasWood) {
+      if (!this.ghostBuildingMesh || this.ghostBuildingType !== selectedType || this.ghostBuildingValid !== canAfford) {
         if (this.ghostBuildingMesh) {
           this.scene.remove(this.ghostBuildingMesh);
         }
-        this.ghostBuildingMesh = this.colonialWorld.createBuildingMesh(selectedType, true, hasWood);
+        this.ghostBuildingMesh = this.colonialWorld.createBuildingMesh(selectedType, true, canAfford);
         this.scene.add(this.ghostBuildingMesh);
         this.ghostBuildingType = selectedType;
-        this.ghostBuildingValid = hasWood;
+        this.ghostBuildingValid = canAfford;
       }
 
       const forward = new THREE.Vector3();

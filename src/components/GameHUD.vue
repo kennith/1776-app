@@ -225,7 +225,7 @@ const cardinalDirection = computed(() => {
         <!-- Frontier Military Building Blueprints Section in Rucksack -->
         <div class="backpack-blueprints-section font-cinzel">
           <div class="bp-sec-header">
-            <span class="bp-sec-title">🏛️ FRONTIER MILITARY BLUEPRINTS (WOOD CONSTRUCTION)</span>
+            <span class="bp-sec-title">🏛️ FRONTIER MILITARY BLUEPRINTS (TIMBER & STONE CONSTRUCTION)</span>
             <button class="enter-build-btn font-cinzel" @click="emit('toggle-building-mode')">🔨 [B] ENTER BUILD MODE</button>
           </div>
           <div class="backpack-bp-list">
@@ -233,7 +233,7 @@ const cardinalDirection = computed(() => {
               v-for="bp in Object.values(BUILDING_BLUEPRINTS)"
               :key="bp.id"
               class="backpack-bp-card"
-              :class="{ 'can-build': (playerState.inventory?.wood ?? 0) >= bp.woodCost }"
+              :class="{ 'can-build': (playerState.inventory?.wood ?? 0) >= bp.woodCost && (playerState.inventory?.stone ?? 0) >= bp.stoneCost }"
               @click="emit('select-building', bp.id as BuildingId)"
             >
               <span class="bbp-icon">{{ bp.icon }}</span>
@@ -242,8 +242,8 @@ const cardinalDirection = computed(() => {
                 <div class="bbp-desc font-fell">{{ bp.description }}</div>
               </div>
               <div class="bbp-badges-row font-cinzel">
-                <span class="bbp-cost-badge" :class="{ ok: (playerState.inventory?.wood ?? 0) >= bp.woodCost }">
-                  🪵 {{ bp.woodCost }} Wood
+                <span class="bbp-cost-badge" :class="{ ok: (playerState.inventory?.wood ?? 0) >= bp.woodCost && (playerState.inventory?.stone ?? 0) >= bp.stoneCost }">
+                  🪵 {{ bp.woodCost }} <template v-if="bp.stoneCost > 0">• 🪨 {{ bp.stoneCost }}</template>
                 </span>
                 <span class="bbp-time-badge">
                   ⏱️ {{ bp.buildTime }}s
@@ -443,7 +443,7 @@ const cardinalDirection = computed(() => {
             <div class="build-help-hints font-fell">
               <span><strong>[LMB]</strong> Begin Construction ({{ BUILDING_BLUEPRINTS[playerState.selectedBuilding]?.buildTime ?? 2.5 }}s)</span> • 
               <span><strong>[R]</strong> Rotate 45°</span> • 
-              <span><strong>[1-5 / Scroll]</strong> Select Blueprint</span> • 
+              <span><strong>[1-8 / Scroll]</strong> Select Blueprint</span> • 
               <button class="exit-build-btn font-cinzel" @click="emit('toggle-building-mode')">✕ [ESC / B] EXIT</button>
             </div>
           </div>
@@ -455,8 +455,8 @@ const cardinalDirection = computed(() => {
               class="blueprint-card"
               :class="{
                 'selected-bp': playerState.selectedBuilding === bp.id,
-                'can-afford': (playerState.inventory?.wood ?? 0) >= bp.woodCost,
-                'cannot-afford': (playerState.inventory?.wood ?? 0) < bp.woodCost
+                'can-afford': (playerState.inventory?.wood ?? 0) >= bp.woodCost && (playerState.inventory?.stone ?? 0) >= bp.stoneCost,
+                'cannot-afford': (playerState.inventory?.wood ?? 0) < bp.woodCost || (playerState.inventory?.stone ?? 0) < bp.stoneCost
               }"
               @click="emit('select-building', bp.id as BuildingId)"
             >
@@ -468,11 +468,11 @@ const cardinalDirection = computed(() => {
                   <span
                     class="bp-cost"
                     :class="{
-                      'cost-ok': (playerState.inventory?.wood ?? 0) >= bp.woodCost,
-                      'cost-err': (playerState.inventory?.wood ?? 0) < bp.woodCost
+                      'cost-ok': (playerState.inventory?.wood ?? 0) >= bp.woodCost && (playerState.inventory?.stone ?? 0) >= bp.stoneCost,
+                      'cost-err': (playerState.inventory?.wood ?? 0) < bp.woodCost || (playerState.inventory?.stone ?? 0) < bp.stoneCost
                     }"
                   >
-                    🪵 {{ bp.woodCost }} Wood
+                    🪵 {{ bp.woodCost }} <template v-if="bp.stoneCost > 0">• 🪨 {{ bp.stoneCost }}</template>
                   </span>
                   <span class="bp-time-tag">⏱️ {{ bp.buildTime }}s</span>
                 </div>
