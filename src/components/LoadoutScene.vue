@@ -259,7 +259,7 @@ const onBackClicked = () => {
             <span class="sec-status">Selected ({{ selectedTools.length }}/3): <strong>{{ selectedTools.map(t => TOOLS[t].name).join(' • ') }}</strong></span>
           </div>
 
-          <div class="cards-grid cols-3">
+          <div class="cards-grid cols-4">
             <div
               v-for="tool in Object.values(TOOLS)"
               :key="tool.id"
@@ -314,6 +314,24 @@ const onBackClicked = () => {
                   <span class="stat-lbl">DIG SPEED:</span>
                   <div class="bar-track"><div class="bar-fill rate" style="width: 60%;"></div></div>
                   <span class="stat-val">1.2x</span>
+                </div>
+              </div>
+
+              <div v-else-if="tool.id === 'pickaxe'" class="stat-bars tool-stat-bars font-cinzel">
+                <div class="stat-row">
+                  <span class="stat-lbl">DAMAGE:</span>
+                  <div class="bar-track"><div class="bar-fill damage" style="width: 40%;"></div></div>
+                  <span class="stat-val">25 DMG</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-lbl">MINE SPEED:</span>
+                  <div class="bar-track"><div class="bar-fill rate" style="width: 75%;"></div></div>
+                  <span class="stat-val">1.1x</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-lbl">TARGET:</span>
+                  <div class="bar-track"><div class="bar-fill gold" style="width: 90%;"></div></div>
+                  <span class="stat-val">Rock & Stone 🪨</span>
                 </div>
               </div>
 
@@ -704,6 +722,10 @@ const onBackClicked = () => {
 
 .cards-grid.cols-3 {
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.cards-grid.cols-4 {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 }
 
 .cards-grid.specialty-grid {

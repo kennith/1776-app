@@ -632,7 +632,7 @@ const cardinalDirection = computed(() => {
             <div class="slot-info">
               <span class="slot-name">{{ TOOLS[tId]?.name || 'Tool' }}</span>
               <span class="slot-cat">
-                TOOL • {{ tId === 'med_kit' ? 'Heals 20 HP' : tId === 'shovel' ? 'Digs 3ft / 5 DMG' : '15 DMG (3-Hit)' }}
+                TOOL • {{ tId === 'med_kit' ? 'Heals 20 HP' : tId === 'shovel' ? 'Digs 3ft / 5 DMG' : tId === 'pickaxe' ? '25 DMG / Mines Stone' : '15 DMG (3-Hit)' }}
               </span>
             </div>
             <div v-if="playerState.slotReloads?.tool?.isReloading && playerState.selectedToolIndex === tIdx" class="slot-reload-overlay">

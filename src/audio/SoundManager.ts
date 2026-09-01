@@ -472,7 +472,7 @@ export class SoundManager {
   /**
    * Tool swing / heal sound
    */
-  public playToolAction(type: 'axe' | 'shovel' | 'med_kit') {
+  public playToolAction(type: 'axe' | 'shovel' | 'pickaxe' | 'med_kit') {
     if (!this.ctx || this.isMuted) return;
     const now = this.ctx.currentTime;
 
@@ -503,6 +503,21 @@ export class SoundManager {
       osc.connect(gain);
       if (this.sfxGainNode) gain.connect(this.sfxGainNode);
       osc.start(now + 0.05);
+      osc.stop(now + 0.25);
+    } else if (type === 'pickaxe') {
+      // Crisp metallic stone clink + heavy resonance
+      this.playSwordSlash();
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(880, now + 0.04);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.22);
+      gain.gain.setValueAtTime(0.6, now + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      osc.connect(gain);
+      if (this.sfxGainNode) gain.connect(this.sfxGainNode);
+      osc.start(now + 0.04);
       osc.stop(now + 0.25);
     } else {
       // Shovel earth digging scrape & thud

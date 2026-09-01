@@ -398,6 +398,9 @@ export class GameEngine {
       if (toolId === 'shovel') {
         this.buildShovelModel(this.activeWeaponMesh);
         this.buildShovelModel(thirdPersonWeapon);
+      } else if (toolId === 'pickaxe') {
+        this.buildPickaxeModel(this.activeWeaponMesh);
+        this.buildPickaxeModel(thirdPersonWeapon);
       } else if (toolId === 'med_kit') {
         this.buildMedKitModel(this.activeWeaponMesh);
         this.buildMedKitModel(thirdPersonWeapon);
@@ -1019,6 +1022,93 @@ export class GameEngine {
     parent.add(shovelAssembly);
   }
 
+  private buildPickaxeModel(parent: THREE.Group) {
+    const pickAssembly = new THREE.Group();
+
+    // 1. Turned Hickory Wood Shaft (0.75m long sturdy tool handle)
+    const handleLength = 0.75;
+    const handleGeom = new THREE.CylinderGeometry(0.016, 0.022, handleLength, 12);
+    handleGeom.translate(0, handleLength / 2, 0);
+    const handleMat = new THREE.MeshStandardMaterial({
+      color: 0x935f37,
+      roughness: 0.72,
+      metalness: 0.05
+    });
+    const handle = new THREE.Mesh(handleGeom, handleMat);
+    pickAssembly.add(handle);
+
+    // 2. Heavy Forged Steel Double-Ended Pick Head
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, handleLength - 0.03, 0);
+
+    const ironMat = new THREE.MeshStandardMaterial({
+      color: 0x2d3436,
+      metalness: 0.88,
+      roughness: 0.35
+    });
+
+    const steelTipMat = new THREE.MeshStandardMaterial({
+      color: 0xe0e6ed,
+      metalness: 0.98,
+      roughness: 0.12
+    });
+
+    // Central Iron Eye Collar Socket (anchoring handle)
+    const socketGeom = new THREE.BoxGeometry(0.046, 0.075, 0.058);
+    const socket = new THREE.Mesh(socketGeom, ironMat);
+    headGroup.add(socket);
+
+    // Top Retention Wedge
+    const wedge = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.012, 0.036), steelTipMat);
+    wedge.position.set(0, 0.042, 0);
+    headGroup.add(wedge);
+
+    // Front Pointed Pick Spike (curves forward into -Z, tapered sharp pyramid tip)
+    const spikeGroup = new THREE.Group();
+    spikeGroup.position.set(0, -0.005, -0.03);
+
+    // Spike base shank
+    const shankGeom = new THREE.BoxGeometry(0.034, 0.038, 0.14);
+    shankGeom.translate(0, -0.015, -0.07);
+    const shank = new THREE.Mesh(shankGeom, ironMat);
+    spikeGroup.add(shank);
+
+    // Tapered diamond pick tip (pointed forward in -Z)
+    const tipGeom = new THREE.ConeGeometry(0.038, 0.16, 4);
+    tipGeom.rotateX(-Math.PI / 2);
+    tipGeom.rotateZ(Math.PI / 4);
+    tipGeom.translate(0, -0.04, -0.22);
+    const pickTip = new THREE.Mesh(tipGeom, steelTipMat);
+    spikeGroup.add(pickTip);
+
+    headGroup.add(spikeGroup);
+
+    // Rear Mattock / Chisel Adze Blade (extends into +Z)
+    const adzeGroup = new THREE.Group();
+    adzeGroup.position.set(0, 0, 0.03);
+
+    const adzeShankGeom = new THREE.BoxGeometry(0.032, 0.036, 0.11);
+    adzeShankGeom.translate(0, -0.008, 0.055);
+    const adzeShank = new THREE.Mesh(adzeShankGeom, ironMat);
+    adzeGroup.add(adzeShank);
+
+    // Broad chisel digging/prying bevel blade
+    const chiselGeom = new THREE.BoxGeometry(0.065, 0.008, 0.06);
+    chiselGeom.translate(0, -0.014, 0.135);
+    const chisel = new THREE.Mesh(chiselGeom, steelTipMat);
+    adzeGroup.add(chisel);
+
+    headGroup.add(adzeGroup);
+
+    pickAssembly.add(headGroup);
+
+    // 3. Poised Forward Mining Stance
+    pickAssembly.position.set(0.06, -0.22, -0.38);
+    pickAssembly.rotation.set(-0.62, 0.0, -0.06);
+
+    parent.add(pickAssembly);
+  }
+
   private buildMedKitModel(parent: THREE.Group) {
     const box = new THREE.Group();
     box.position.set(0.05, -0.08, -0.28);
@@ -1324,6 +1414,14 @@ export class GameEngine {
           this.terrain.digAt(digX, digZ, 3.0);
           this.colonialWorld.createWoodChips(digX, this.controls.position.y - 1.2, digZ, 18);
         }
+      } else if (toolId === 'pickaxe') {
+        soundManager.playToolAction('pickaxe');
+        const forwardDir = new THREE.Vector3();
+        this.camera.getWorldDirection(forwardDir);
+        const hitX = this.controls.position.x + forwardDir.x * 2.0;
+        const hitZ = this.controls.position.z + forwardDir.z * 2.0;
+        const hitY = this.terrain.getHeightAt(hitX, hitZ);
+        this.colonialWorld.createWoodChips(hitX, hitY + 0.3, hitZ, 16);
       } else if (toolId === 'med_kit') {
         soundManager.playToolAction(toolId);
         // Heals 20 health

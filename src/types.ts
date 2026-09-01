@@ -2,7 +2,7 @@ export type GameState = 'title' | 'loadout' | 'playing' | 'paused';
 
 export type MainWeaponId = 'springfield' | 'kentucky' | 'sword' | 'brown_bess';
 export type SubWeaponId = 'flintlock_pistol' | 'knife' | 'machete' | 'grenade';
-export type ToolId = 'axe' | 'shovel' | 'med_kit';
+export type ToolId = 'axe' | 'shovel' | 'pickaxe' | 'med_kit';
 export type SpecialtyId = 'healer' | 'attacker' | 'builder' | 'tank' | 'speedster';
 
 export interface WeaponInfo {
@@ -282,6 +282,21 @@ export const TOOLS: Record<ToolId, WeaponInfo> = {
     description: 'Digs 3 feet of dirt per 4 swings into the earth. Deals 5 melee damage.',
     icon: '🪏',
     lore: 'Pivotal during the Battle of Bunker Hill for digging earthworks and overnight defensive redoubts.'
+  },
+  pickaxe: {
+    id: 'pickaxe',
+    name: 'Frontier Pickaxe',
+    category: 'tool',
+    type: 'Forged Steel Mining Pick',
+    damage: 25,
+    fireRate: 1.1,
+    reloadTime: 0,
+    isFirearm: false,
+    range: 4,
+    accuracy: 90,
+    description: 'Fractures granite rocks & mountain boulders. Deals 25 melee damage.',
+    icon: '⛏️',
+    lore: 'Pioneer entrenching mattock used to break shale, granite, and excavate mountain trails.'
   },
   med_kit: {
     id: 'med_kit',
