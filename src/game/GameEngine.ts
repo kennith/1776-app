@@ -701,21 +701,82 @@ export class GameEngine {
 
   private buildKnifeModel(parent: THREE.Group) {
     const knife = new THREE.Group();
-    knife.position.set(0.05, -0.1, -0.15);
-    knife.rotation.set(-0.3, 0.2, -0.1);
+    // Positioned in right hand, tilted slightly forward/inward in high-ready combat grip with blade pointed UP
+    knife.position.set(0.04, 0.02, 0.05);
+    knife.rotation.set(-0.20, 0.30, -0.12);
 
-    const bladeGeom = new THREE.BoxGeometry(0.015, 0.045, 0.35);
-    const bladeMat = new THREE.MeshStandardMaterial({ color: 0xdcdde1, metalness: 0.95, roughness: 0.2 });
-    const blade = new THREE.Mesh(bladeGeom, bladeMat);
-    blade.position.set(0, 0.05, -0.2);
-    knife.add(blade);
+    const brassMat = new THREE.MeshStandardMaterial({
+      color: 0xd4af37,
+      metalness: 0.90,
+      roughness: 0.25
+    });
 
-    const gripGeom = new THREE.CylinderGeometry(0.02, 0.02, 0.14, 8);
-    const gripMat = new THREE.MeshStandardMaterial({ color: 0x8b6508, roughness: 0.8 });
-    const grip = new THREE.Mesh(gripGeom, gripMat);
-    grip.rotation.x = Math.PI / 2;
-    grip.position.set(0, 0.05, -0.02);
+    const walnutMat = new THREE.MeshStandardMaterial({
+      color: 0x3d2314,
+      roughness: 0.70
+    });
+
+    const bladeMat = new THREE.MeshStandardMaterial({
+      color: 0xf5f6fa,
+      metalness: 0.98,
+      roughness: 0.15
+    });
+
+    const edgeMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      metalness: 1.0,
+      roughness: 0.08
+    });
+
+    // 1. Hardwood Handgrip with ergonomic contouring
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.016, 0.13, 10), walnutMat);
+    grip.position.set(0, -0.075, 0);
     knife.add(grip);
+
+    // Brass grip rivets / pins
+    for (const py of [-0.045, -0.075, -0.105]) {
+      const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.022, 6), brassMat);
+      pin.rotation.z = Math.PI / 2;
+      pin.position.set(0, py, 0);
+      knife.add(pin);
+    }
+
+    // 2. Brass Butt / Pommel Cap at base
+    const pommel = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.014, 0.026), brassMat);
+    pommel.position.set(0, -0.145, 0);
+    knife.add(pommel);
+
+    // 3. Polished Brass Crossguard / Hilt Plate
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.014, 0.032), brassMat);
+    guard.position.set(0, 0.0, 0);
+    knife.add(guard);
+
+    // 4. Upright Carbon-Steel Bowie Blade (Pointing Straight UP along +Y)
+    // Main blade body
+    const mainBlade = new THREE.Mesh(new THREE.BoxGeometry(0.010, 0.22, 0.046), bladeMat);
+    mainBlade.position.set(0, 0.11, -0.004);
+    knife.add(mainBlade);
+
+    // Razor Sharp Leading Edge (facing -Z)
+    const bevelEdge = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.22, 0.016), edgeMat);
+    bevelEdge.position.set(0, 0.11, -0.026);
+    knife.add(bevelEdge);
+
+    // Tapered Bowie Clip-Point Tip (tapering upwards to sharp apex at y = 0.31)
+    const tipGeom = new THREE.ConeGeometry(0.024, 0.09, 4);
+    tipGeom.scale(0.38, 1.0, 1.4);
+    const tip = new THREE.Mesh(tipGeom, bladeMat);
+    tip.position.set(0, 0.265, -0.008);
+    knife.add(tip);
+
+    // Central Fuller / Blood Groove
+    const fuller = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.16, 0.008), new THREE.MeshStandardMaterial({
+      color: 0x718093,
+      metalness: 0.85,
+      roughness: 0.4
+    }));
+    fuller.position.set(0, 0.10, 0);
+    knife.add(fuller);
 
     parent.add(knife);
   }
